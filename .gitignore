@@ -1,0 +1,12 @@
+node_modules
+dist
+.npm-cache
+.DS_Store
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+scripts/publish-github.mjs
