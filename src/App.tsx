@@ -21,6 +21,15 @@ const voiceDefaultsVersion = 2;
 const welcomeMessageContent =
   "喵～你好呀！我是喵语助手。\n\n你可以直接打字；需要语音输入时，可在高级模式里开启持续语音后再点麦克风。每日模式默认使用 v4 flash 且不思考，只有很复杂的问题才会自动切到 v4 pro 且仍不思考；高级模式固定使用 v4 pro 并开启思考。";
 
+function initialApiBaseUrl(storedValue?: string) {
+  const params = new URLSearchParams(window.location.search);
+  return sanitizeApiBaseUrl(params.get("apiBase") || params.get("api") || storedValue || import.meta.env.VITE_API_BASE_URL || "");
+}
+
+function sanitizeApiBaseUrl(value: string) {
+  return value.trim().replace(/\/+$/, "");
+}
+
 function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -63,6 +72,7 @@ export default function App() {
   const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(
     shouldApplyVoiceDefaults ? false : (stored.voiceReplyEnabled ?? false)
   );
+  const [apiBaseUrl, setApiBaseUrl] = useState(() => initialApiBaseUrl(stored.apiBaseUrl));
   const [offlineFallbackEnabled, setOfflineFallbackEnabled] = useState(stored.offlineFallbackEnabled ?? true);
   const [composerValue, setComposerValue] = useState("");
   const [isBusy, setIsBusy] = useState(false);
@@ -89,9 +99,19 @@ export default function App() {
       continuousVoiceEnabled,
       voiceReplyEnabled,
       voiceDefaultsVersion,
+      apiBaseUrl,
       offlineFallbackEnabled
     });
-  }, [advanced, activeConversationId, continuousVoiceEnabled, conversations, mode, offlineFallbackEnabled, voiceReplyEnabled]);
+  }, [
+    advanced,
+    activeConversationId,
+    apiBaseUrl,
+    continuousVoiceEnabled,
+    conversations,
+    mode,
+    offlineFallbackEnabled,
+    voiceReplyEnabled
+  ]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -191,11 +211,13 @@ export default function App() {
         advanced={advanced}
         continuousVoiceEnabled={continuousVoiceEnabled}
         voiceReplyEnabled={voiceReplyEnabled}
+        apiBaseUrl={apiBaseUrl}
         offlineFallbackEnabled={offlineFallbackEnabled}
         speechSupport={speechSupport}
         onAdvancedChange={setAdvanced}
         onContinuousVoiceChange={setContinuousVoiceEnabled}
         onVoiceReplyChange={setVoiceReplyEnabled}
+        onApiBaseUrlChange={(value) => setApiBaseUrl(sanitizeApiBaseUrl(value))}
         onOfflineFallbackChange={setOfflineFallbackEnabled}
         onReset={handleResetSettings}
       />
@@ -322,6 +344,7 @@ export default function App() {
       await streamAssistantReply({
         messages: requestMessages,
         route,
+        apiBaseUrl,
         onChunk: (chunk) => {
           reply += chunk;
           patchMessage(assistantMessage.id, {

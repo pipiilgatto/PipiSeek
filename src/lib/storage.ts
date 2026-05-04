@@ -10,6 +10,7 @@ export interface StoredState {
   continuousVoiceEnabled: boolean;
   voiceReplyEnabled: boolean;
   voiceDefaultsVersion: number;
+  apiBaseUrl: string;
   offlineFallbackEnabled: boolean;
 }
 

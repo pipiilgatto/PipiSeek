@@ -4,11 +4,12 @@ import type { ChatMessage, ChatRoute } from "../types";
 interface SendChatOptions {
   messages: ChatMessage[];
   route: ChatRoute;
+  apiBaseUrl?: string;
   onChunk: (chunk: string) => void;
 }
 
-export async function streamAssistantReply({ messages, route, onChunk }: SendChatOptions) {
-  const response = await fetch(apiEndpoint("/api/chat"), {
+export async function streamAssistantReply({ messages, route, apiBaseUrl, onChunk }: SendChatOptions) {
+  const response = await fetch(apiEndpoint("/api/chat", apiBaseUrl), {
     method: "POST",
     headers: {
       "content-type": "application/json"
@@ -62,8 +63,8 @@ export function fallbackReply(prompt: string, error: unknown) {
   return getOfflineFallback(prompt, reason);
 }
 
-function apiEndpoint(path: string) {
-  const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
+function apiEndpoint(path: string, runtimeBase?: string) {
+  const configuredBase = runtimeBase?.trim() || import.meta.env.VITE_API_BASE_URL?.trim();
   if (!configuredBase) return path;
   return `${configuredBase.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }

@@ -785,6 +785,40 @@ svg {
   line-height: 1.45;
 }
 
+.api-url-field {
+  display: grid;
+  gap: 7px;
+}
+
+.api-url-field span,
+.api-url-field small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.api-url-field span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.api-url-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+}
+
+.api-url-field input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(69, 150, 142, 0.12);
+}
+
 .radio-dot {
   width: 16px;
   height: 16px;

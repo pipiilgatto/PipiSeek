@@ -7,11 +7,13 @@ interface SettingsPanelProps {
   advanced: AdvancedSettings;
   continuousVoiceEnabled: boolean;
   voiceReplyEnabled: boolean;
+  apiBaseUrl: string;
   offlineFallbackEnabled: boolean;
   speechSupport: SpeechSupport;
   onAdvancedChange: (settings: AdvancedSettings) => void;
   onContinuousVoiceChange: (enabled: boolean) => void;
   onVoiceReplyChange: (enabled: boolean) => void;
+  onApiBaseUrlChange: (value: string) => void;
   onOfflineFallbackChange: (enabled: boolean) => void;
   onReset: () => void;
 }
@@ -21,11 +23,13 @@ export function SettingsPanel({
   advanced,
   continuousVoiceEnabled,
   voiceReplyEnabled,
+  apiBaseUrl,
   offlineFallbackEnabled,
   speechSupport,
   onAdvancedChange,
   onContinuousVoiceChange,
   onVoiceReplyChange,
+  onApiBaseUrlChange,
   onOfflineFallbackChange,
   onReset
 }: SettingsPanelProps) {
@@ -84,6 +88,20 @@ export function SettingsPanel({
               disabled={!speechSupport.synthesis}
               onChange={onVoiceReplyChange}
             />
+          </section>
+
+          <section className="settings-section">
+            <h2>远程访问</h2>
+            <label className="api-url-field">
+              <span>API 服务地址</span>
+              <input
+                type="url"
+                value={apiBaseUrl}
+                placeholder="https://miaoyu.your-domain.com"
+                onChange={(event) => onApiBaseUrlChange(event.target.value)}
+              />
+              <small>GitHub Pages 通过这个 HTTPS 代理调用 DeepSeek，key 只保存在代理服务器。</small>
+            </label>
           </section>
 
           <section className="settings-section">
