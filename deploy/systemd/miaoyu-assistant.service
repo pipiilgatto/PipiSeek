@@ -1,0 +1,17 @@
+[Unit]
+Description=Miaoyu Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USER
+WorkingDirectory=/opt/miaoyu-assistant
+Environment=NODE_ENV=production
+Environment=PORT=4187
+ExecStart=/usr/bin/npm run serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
