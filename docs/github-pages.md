@@ -29,7 +29,7 @@ Build locally and publish the `dist` folder to the `gh-pages` branch:
 VITE_BASE_PATH=/PipiSeek/ npm run build
 ```
 
-Then configure GitHub Pages to deploy from the `gh-pages` branch root.
+Configure GitHub Pages to deploy from the `gh-pages` branch root. No GitHub Action or Pages secret should contain `DEEPSEEK_API_KEY`.
 
 ## iPhone
 
