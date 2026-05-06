@@ -52,6 +52,7 @@ Set:
 
 ```bash
 DEEPSEEK_API_KEY="your key"
+ALLOWED_ORIGINS="https://pipiilgatto.github.io,http://localhost:5173"
 ```
 
 Keep `.env.local` only on the laptop. It is ignored by git.
@@ -103,10 +104,10 @@ For a quick temporary tunnel:
 cloudflared tunnel --url http://localhost:4187
 ```
 
-For daily use, create a named tunnel in Cloudflare Zero Trust and route a stable hostname, for example:
+For GitHub Pages access, route your stable API hostname to the Node server. The checked-in frontend currently calls `https://pipicat.xin/api/chat`, so the production tunnel should point that hostname to the Arch laptop:
 
 ```text
-miaoyu.your-domain.com -> http://localhost:4187
+pipicat.xin -> http://localhost:4187
 ```
 
 Then install cloudflared as a Linux service using the command shown in the Cloudflare dashboard. If you are using a locally managed tunnel config, Cloudflare documents that Linux service installs expect config under `$HOME/.cloudflared/config.yml`, and when using `sudo` you may need to pass the config path explicitly:

@@ -1,3 +1,4 @@
+import { MODE_ORDER, MODE_CONFIGS } from "../lib/routing";
 import type { ChatMode } from "../types";
 
 interface ModeControlsProps {
@@ -8,24 +9,18 @@ interface ModeControlsProps {
 export function ModeControls({ mode, onChange }: ModeControlsProps) {
   return (
     <div className="mode-switch" role="tablist" aria-label="使用模式">
-      <button
-        className={mode === "daily" ? "active" : ""}
-        type="button"
-        role="tab"
-        aria-selected={mode === "daily"}
-        onClick={() => onChange("daily")}
-      >
-        每日模式
-      </button>
-      <button
-        className={mode === "advanced" ? "active" : ""}
-        type="button"
-        role="tab"
-        aria-selected={mode === "advanced"}
-        onClick={() => onChange("advanced")}
-      >
-        高级模式
-      </button>
+      {MODE_ORDER.map((item) => (
+        <button
+          key={item}
+          className={mode === item ? "active" : ""}
+          type="button"
+          role="tab"
+          aria-selected={mode === item}
+          onClick={() => onChange(item)}
+        >
+          {MODE_CONFIGS[item].label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -23,7 +23,13 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:5173`。iPhone 访问同一局域网里的服务地址后，可以通过 Safari 分享菜单添加到主屏幕。
+打开 `http://localhost:5173`。远程 iPhone 访问推荐使用 GitHub Pages：
+
+```text
+https://pipiilgatto.github.io/PipiSeek/
+```
+
+应用固定通过 `https://pipicat.xin/api/chat` 调用服务端代理；不要把 DeepSeek key 放进前端代码。
 
 生产预览仍可使用：
 
@@ -38,9 +44,11 @@ For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must c
 
 ## 模式
 
-- 每日模式：默认使用 `deepseek-v4-flash`，关闭 thinking；只有很复杂的问题才会自动切到 `deepseek-v4-pro`，仍然关闭 thinking。
-- 高级模式：固定使用 `deepseek-v4-pro`，始终开启 thinking，默认 `最大思考`，可手动降到 `深度思考`。
-- 不满意重答：点助手消息下方的不满意按钮，会用 `v4 pro + 最大思考` 重新回答。
+- 每日模式：日常任务、写作、翻译、沟通与轻量分析。默认 `deepseek-v4-flash`，关闭 thinking；复杂问题自动切到 `deepseek-v4-pro`，仍关闭 thinking。
+- 数理模式：逻辑、数学、物理、证明和复杂计算。固定 `deepseek-v4-pro`，开启 thinking，reasoning effort 为 `high`。
+- 编程模式：代码、调试、架构、agent 与 app 开发。固定 `deepseek-v4-pro`，开启 thinking，reasoning effort 为 `max`。
+- 三个模式各自保存独立对话历史；左侧按模式文件夹分组。
+- 输入框支持上传图片、文本和常见文件作为补充材料；可解析的小文本会随问题提交，压缩后的图片会作为视觉材料提交。
 
 ## 离线兜底
 

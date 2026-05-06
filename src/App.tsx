@@ -3,48 +3,63 @@ import { Composer } from "./components/Composer";
 import { MenuIcon } from "./components/Icons";
 import { MessageBubble } from "./components/MessageBubble";
 import { ModeControls } from "./components/ModeControls";
-import { SettingsPanel } from "./components/SettingsPanel";
 import { Sidebar } from "./components/Sidebar";
 import { fallbackReply, streamAssistantReply } from "./lib/api";
 import { appIcon192 } from "./lib/assets";
-import { chooseRoute, improvementRoute } from "./lib/routing";
+import { MODE_CONFIGS, MODE_ORDER, chooseRoute, improvementRoute } from "./lib/routing";
 import { getSpeechSupport, speakAsMiaoyu, stopMiaoyuSpeech, type MiaoyuSpeechController } from "./lib/speech";
-import { loadState, saveState } from "./lib/storage";
-import type { AdvancedSettings, ChatMessage, ChatMode, ChatRoute, Conversation } from "./types";
+import { isConversationArray, loadState, saveState } from "./lib/storage";
+import type { Attachment, ChatMessage, ChatMode, ChatRoute, Conversation, ModeWorkspace } from "./types";
 
-const defaultAdvanced: AdvancedSettings = {
-  reasoningEffort: "max"
-};
-
-const voiceDefaultsVersion = 2;
-
-const welcomeMessageContent =
-  "喵～你好呀！我是喵语助手。\n\n你可以直接打字；需要语音输入时，可在高级模式里开启持续语音后再点麦克风。每日模式默认使用 v4 flash 且不思考，只有很复杂的问题才会自动切到 v4 pro 且仍不思考；高级模式固定使用 v4 pro 并开启思考。";
-
-function initialApiBaseUrl(storedValue?: string) {
-  const params = new URLSearchParams(window.location.search);
-  return sanitizeApiBaseUrl(params.get("apiBase") || params.get("api") || storedValue || import.meta.env.VITE_API_BASE_URL || "");
-}
-
-function sanitizeApiBaseUrl(value: string) {
-  return value.trim().replace(/\/+$/, "");
-}
+const maxAttachmentCount = 8;
+const maxPreviewBytes = 520_000;
+const maxImagePreviewEdge = 1280;
+const compressedImageQuality = 0.78;
+const maxReadableTextBytes = 250_000;
+const maxStoredTextChars = 12_000;
+const textExtensions = new Set([
+  "txt",
+  "md",
+  "markdown",
+  "csv",
+  "json",
+  "yaml",
+  "yml",
+  "xml",
+  "html",
+  "css",
+  "js",
+  "jsx",
+  "ts",
+  "tsx",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "rs",
+  "go",
+  "sh",
+  "sql",
+  "log"
+]);
 
 function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createWelcomeConversation(): Conversation {
+function createWelcomeConversation(mode: ChatMode): Conversation {
   const now = Date.now();
   return {
-    id: createId("conv"),
-    title: "新的喵语对话",
+    id: createId(`conv-${mode}`),
+    title: MODE_CONFIGS[mode].label,
     updatedAt: now,
     messages: [
       {
         id: createId("msg"),
         role: "assistant",
-        content: welcomeMessageContent,
+        content: MODE_CONFIGS[mode].welcome,
         createdAt: now,
         status: "idle"
       }
@@ -52,29 +67,22 @@ function createWelcomeConversation(): Conversation {
   };
 }
 
+function createWorkspace(mode: ChatMode, conversations = [createWelcomeConversation(mode)]): ModeWorkspace {
+  const normalized = conversations.length ? normalizeStoredConversations(conversations, mode) : [createWelcomeConversation(mode)];
+  return {
+    conversations: normalized,
+    activeConversationId: normalized[0].id
+  };
+}
+
 export default function App() {
   const stored = useMemo(() => loadState(), []);
-  const initialConversations = stored.conversations?.length
-    ? normalizeStoredConversations(stored.conversations)
-    : [createWelcomeConversation()];
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [activeConversationId, setActiveConversationId] = useState(
-    stored.activeConversationId && initialConversations.some((item) => item.id === stored.activeConversationId)
-      ? stored.activeConversationId
-      : initialConversations[0].id
-  );
-  const [mode, setMode] = useState<ChatMode>(stored.mode || "daily");
-  const [advanced, setAdvanced] = useState<AdvancedSettings>(() => normalizeAdvancedSettings(stored.advanced));
-  const shouldApplyVoiceDefaults = stored.voiceDefaultsVersion !== voiceDefaultsVersion;
-  const [continuousVoiceEnabled, setContinuousVoiceEnabled] = useState(
-    shouldApplyVoiceDefaults ? true : (stored.continuousVoiceEnabled ?? true)
-  );
-  const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(
-    shouldApplyVoiceDefaults ? false : (stored.voiceReplyEnabled ?? false)
-  );
-  const [apiBaseUrl, setApiBaseUrl] = useState(() => initialApiBaseUrl(stored.apiBaseUrl));
-  const [offlineFallbackEnabled, setOfflineFallbackEnabled] = useState(stored.offlineFallbackEnabled ?? true);
+  const [mode, setMode] = useState<ChatMode>(() => normalizeMode(stored.activeMode || stored.mode));
+  const [workspaces, setWorkspaces] = useState<Record<ChatMode, ModeWorkspace>>(() => normalizeWorkspaces(stored));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => Boolean(stored.sidebarCollapsed));
+  const [offlineFallbackEnabled] = useState(stored.offlineFallbackEnabled !== false);
   const [composerValue, setComposerValue] = useState("");
+  const [composerAttachments, setComposerAttachments] = useState<Attachment[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -84,34 +92,23 @@ export default function App() {
   const speechControllerRef = useRef<MiaoyuSpeechController | null>(null);
   const speechSupport = useMemo(() => getSpeechSupport(), []);
 
-  const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId) || conversations[0];
+  const workspace = workspaces[mode];
+  const activeConversation =
+    workspace.conversations.find((conversation) => conversation.id === workspace.activeConversationId) || workspace.conversations[0];
   const latestMessage = activeConversation.messages[activeConversation.messages.length - 1];
-  const latestMessageSignature = `${activeConversation.id}:${activeConversation.messages.length}:${latestMessage?.id || ""}:${
+  const latestMessageSignature = `${mode}:${activeConversation.id}:${activeConversation.messages.length}:${latestMessage?.id || ""}:${
     latestMessage?.content.length || 0
   }:${latestMessage?.status || ""}`;
 
   useEffect(() => {
     saveState({
-      conversations,
-      activeConversationId,
-      mode,
-      advanced,
-      continuousVoiceEnabled,
-      voiceReplyEnabled,
-      voiceDefaultsVersion,
-      apiBaseUrl,
+      version: 2,
+      activeMode: mode,
+      workspaces,
+      sidebarCollapsed,
       offlineFallbackEnabled
     });
-  }, [
-    advanced,
-    activeConversationId,
-    apiBaseUrl,
-    continuousVoiceEnabled,
-    conversations,
-    mode,
-    offlineFallbackEnabled,
-    voiceReplyEnabled
-  ]);
+  }, [mode, workspaces, sidebarCollapsed, offlineFallbackEnabled]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -142,18 +139,22 @@ export default function App() {
   }, []);
 
   return (
-    <div className={`app-shell ${mode === "advanced" ? "settings-expanded" : "settings-folded"}`}>
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
       <Sidebar
-        conversations={conversations}
-        activeId={activeConversation.id}
+        folders={MODE_ORDER.map((item) => ({
+          mode: item,
+          conversations: workspaces[item].conversations,
+          activeConversationId: workspaces[item].activeConversationId
+        }))}
+        activeMode={mode}
+        collapsed={sidebarCollapsed && !isSidebarOpen}
         isOpen={isSidebarOpen}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onClose={() => setIsSidebarOpen(false)}
-        onSelect={(id) => {
-          setActiveConversationId(id);
-          setIsSidebarOpen(false);
-        }}
+        onModeSelect={handleModeChange}
+        onConversationSelect={handleConversationSelect}
         onNew={handleNewConversation}
-        onClear={handleClear}
+        onClearMode={handleClearMode}
       />
 
       <main className="chat-main">
@@ -161,7 +162,7 @@ export default function App() {
           <button className="icon-button mobile-only" type="button" onClick={() => setIsSidebarOpen(true)} aria-label="打开侧栏">
             <MenuIcon />
           </button>
-          <ModeControls mode={mode} onChange={setMode} />
+          <ModeControls mode={mode} onChange={handleModeChange} />
           <div className="topbar-actions">
             <span className={`network-pill ${isOnline ? "online" : "offline"}`}>{isOnline ? "在线" : "离线"}</span>
           </div>
@@ -171,8 +172,8 @@ export default function App() {
           <div className="conversation-meta">
             <img src={appIcon192} alt="" />
             <div>
-              <h1>喵语助手</h1>
-              <p>{mode === "daily" ? "每日模式：v4 flash 默认不思考，复杂问题自动升级" : "高级模式：v4 pro，始终启用思考"}</p>
+              <h1>{MODE_CONFIGS[mode].headline}</h1>
+              <p>{MODE_CONFIGS[mode].description}</p>
             </div>
           </div>
 
@@ -197,44 +198,43 @@ export default function App() {
           <div className="route-preview">{routePreview()}</div>
           <Composer
             value={composerValue}
+            attachments={composerAttachments}
             isBusy={isBusy}
             speechSupport={speechSupport}
-            continuousVoiceEnabled={continuousVoiceEnabled}
             onChange={setComposerValue}
+            onAddFiles={handleFilesAdded}
+            onRemoveAttachment={handleRemoveAttachment}
             onSubmit={handleSubmit}
           />
         </div>
       </main>
 
-      <SettingsPanel
-        mode={mode}
-        advanced={advanced}
-        continuousVoiceEnabled={continuousVoiceEnabled}
-        voiceReplyEnabled={voiceReplyEnabled}
-        apiBaseUrl={apiBaseUrl}
-        offlineFallbackEnabled={offlineFallbackEnabled}
-        speechSupport={speechSupport}
-        onAdvancedChange={setAdvanced}
-        onContinuousVoiceChange={setContinuousVoiceEnabled}
-        onVoiceReplyChange={setVoiceReplyEnabled}
-        onApiBaseUrlChange={(value) => setApiBaseUrl(sanitizeApiBaseUrl(value))}
-        onOfflineFallbackChange={setOfflineFallbackEnabled}
-        onReset={handleResetSettings}
-      />
-
-      {isSidebarOpen && (
-        <button className="scrim" type="button" aria-label="关闭浮层" onClick={closeOverlays} />
-      )}
+      {isSidebarOpen && <button className="scrim" type="button" aria-label="关闭浮层" onClick={() => setIsSidebarOpen(false)} />}
     </div>
   );
 
   function routePreview() {
-    const route = chooseRoute(composerValue || "日常聊天", mode, advanced);
-    if (mode === "daily") return `自动选择 · ${route.model === "deepseek-v4-pro" ? "v4 pro" : "v4 flash"} · 不思考`;
-    return `v4 pro · ${advanced.reasoningEffort === "max" ? "最大思考" : "深度思考"}`;
+    return chooseRoute(composerValue || attachmentPreviewText(composerAttachments) || "日常聊天", mode).label;
   }
 
-  function closeOverlays() {
+  function handleModeChange(nextMode: ChatMode) {
+    setMode(nextMode);
+    setComposerValue("");
+    setComposerAttachments([]);
+    setIsSidebarOpen(false);
+  }
+
+  function handleConversationSelect(nextMode: ChatMode, conversationId: string) {
+    setMode(nextMode);
+    setWorkspaces((current) => ({
+      ...current,
+      [nextMode]: {
+        ...current[nextMode],
+        activeConversationId: conversationId
+      }
+    }));
+    setComposerValue("");
+    setComposerAttachments([]);
     setIsSidebarOpen(false);
   }
 
@@ -273,49 +273,76 @@ export default function App() {
   }
 
   function handleNewConversation() {
-    const conversation = createWelcomeConversation();
-    setConversations((current) => [conversation, ...current]);
-    setActiveConversationId(conversation.id);
+    const conversation = createWelcomeConversation(mode);
+    setWorkspaces((current) => ({
+      ...current,
+      [mode]: {
+        conversations: [conversation, ...current[mode].conversations],
+        activeConversationId: conversation.id
+      }
+    }));
     setComposerValue("");
+    setComposerAttachments([]);
     setIsSidebarOpen(false);
   }
 
-  function handleClear() {
-    const confirmed = window.confirm("确定要清空本地对话记录吗？这个操作只会影响当前设备。");
+  function handleClearMode() {
+    const confirmed = window.confirm(`确定要清空${MODE_CONFIGS[mode].label}的本地对话记录吗？这个操作不会影响其他模式。`);
     if (!confirmed) return;
-    const conversation = createWelcomeConversation();
-    setConversations([conversation]);
-    setActiveConversationId(conversation.id);
+    const workspace = createWorkspace(mode);
+    setWorkspaces((current) => ({
+      ...current,
+      [mode]: workspace
+    }));
   }
 
-  function handleResetSettings() {
-    setMode("daily");
-    setAdvanced(defaultAdvanced);
-    setContinuousVoiceEnabled(true);
-    setVoiceReplyEnabled(false);
-    setOfflineFallbackEnabled(true);
+  async function handleFilesAdded(files: FileList) {
+    const availableSlots = Math.max(0, maxAttachmentCount - composerAttachments.length);
+    const selectedFiles = Array.from(files).slice(0, availableSlots);
+    if (!selectedFiles.length) return;
+
+    const attachments = await Promise.all(selectedFiles.map(readAttachment));
+    setComposerAttachments((current) => [...current, ...attachments]);
+  }
+
+  function handleRemoveAttachment(id: string) {
+    setComposerAttachments((current) => current.filter((attachment) => attachment.id !== id));
   }
 
   function updateActiveConversation(updater: (conversation: Conversation) => Conversation) {
-    setConversations((current) =>
-      current.map((conversation) => (conversation.id === activeConversationId ? updater(conversation) : conversation))
-    );
+    setWorkspaces((current) => {
+      const currentWorkspace = current[mode];
+      return {
+        ...current,
+        [mode]: {
+          ...currentWorkspace,
+          conversations: currentWorkspace.conversations.map((conversation) =>
+            conversation.id === currentWorkspace.activeConversationId ? updater(conversation) : conversation
+          )
+        }
+      };
+    });
   }
 
   async function handleSubmit(value: string) {
     const prompt = value.trim();
-    if (!prompt || isBusy) return;
+    if ((!prompt && !composerAttachments.length) || isBusy) return;
+
+    const attachments = composerAttachments;
+    const effectivePrompt = prompt || "请参考我上传的补充材料。";
     setComposerValue("");
-    await sendWithRoute(prompt, chooseRoute(prompt, mode, advanced));
+    setComposerAttachments([]);
+    await sendWithRoute(effectivePrompt, chooseRoute(`${effectivePrompt}\n${attachmentPreviewText(attachments)}`, mode), effectivePrompt, attachments);
   }
 
-  async function sendWithRoute(prompt: string, route: ChatRoute, visibleUserText = prompt) {
+  async function sendWithRoute(prompt: string, route: ChatRoute, visibleUserText = prompt, attachments: Attachment[] = []) {
     setIsBusy(true);
     const now = Date.now();
     const userMessage: ChatMessage = {
       id: createId("msg"),
       role: "user",
       content: visibleUserText,
+      attachments,
       createdAt: now
     };
     const assistantMessage: ChatMessage = {
@@ -334,7 +361,7 @@ export default function App() {
 
     updateActiveConversation((conversation) => ({
       ...conversation,
-      title: conversation.messages.some((message) => message.role === "user") ? conversation.title : makeTitle(prompt),
+      title: conversation.messages.some((message) => message.role === "user") ? conversation.title : makeTitle(prompt, attachments),
       updatedAt: Date.now(),
       messages: [...conversation.messages, userMessage, assistantMessage]
     }));
@@ -344,7 +371,6 @@ export default function App() {
       await streamAssistantReply({
         messages: requestMessages,
         route,
-        apiBaseUrl,
         onChunk: (chunk) => {
           reply += chunk;
           patchMessage(assistantMessage.id, {
@@ -357,7 +383,6 @@ export default function App() {
         content: reply || "喵～这次没有收到有效内容。",
         status: "idle"
       });
-      if (voiceReplyEnabled && reply) speakAsMiaoyu(reply);
     } catch (error) {
       const offlineText = offlineFallbackEnabled
         ? fallbackReply(prompt, error)
@@ -367,7 +392,6 @@ export default function App() {
         status: offlineFallbackEnabled ? "offline" : "error",
         fallbackReason: error instanceof Error ? error.message : "未知错误"
       });
-      if (voiceReplyEnabled) speakAsMiaoyu(offlineText);
     } finally {
       setIsBusy(false);
     }
@@ -393,38 +417,187 @@ export default function App() {
     const prompt = [
       "用户对上一版回答不满意。请用更严谨、更完整、更有条理的方式重新回答。",
       `原问题：${previousUser.content}`,
+      previousUser.attachments?.length ? attachmentPreviewText(previousUser.attachments) : "",
       `上一版回答：${assistantMessage.content}`,
       "请直接给出改进后的中文回答。"
-    ].join("\n\n");
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
-    await sendWithRoute(prompt, improvementRoute(), "不满意，请用 v4 pro 和最大思考重新回答。");
+    await sendWithRoute(prompt, improvementRoute(mode), "不满意，请重新回答。", previousUser.attachments || []);
   }
 }
 
-function makeTitle(prompt: string) {
-  return prompt.replace(/\s+/g, " ").slice(0, 18) || "新的喵语对话";
+function normalizeMode(value: unknown): ChatMode {
+  return value === "math" || value === "coding" ? value : "daily";
 }
 
-function normalizeStoredConversations(conversations: Conversation[]) {
-  return conversations.map((conversation) => {
-    const firstMessage = conversation.messages[0];
-    if (
-      firstMessage?.role !== "assistant" ||
-      !firstMessage.content.includes("喵～你好呀！我是喵语助手。") ||
-      !firstMessage.content.includes("每日模式会自动选择 v4 flash 或 v4 pro")
-    ) {
-      return conversation;
-    }
+function normalizeWorkspaces(stored: Record<string, unknown>): Record<ChatMode, ModeWorkspace> {
+  const rawWorkspaces = stored.workspaces as Partial<Record<ChatMode, Partial<ModeWorkspace>>> | undefined;
+  const workspaces = Object.fromEntries(MODE_ORDER.map((mode) => [mode, createWorkspace(mode)])) as Record<ChatMode, ModeWorkspace>;
 
-    return {
-      ...conversation,
-      messages: [{ ...firstMessage, content: welcomeMessageContent }, ...conversation.messages.slice(1)]
+  for (const mode of MODE_ORDER) {
+    const rawWorkspace = rawWorkspaces?.[mode];
+    if (isConversationArray(rawWorkspace?.conversations)) {
+      const conversations = normalizeStoredConversations(rawWorkspace.conversations, mode);
+      workspaces[mode] = {
+        conversations,
+        activeConversationId:
+          typeof rawWorkspace.activeConversationId === "string" &&
+          conversations.some((conversation) => conversation.id === rawWorkspace.activeConversationId)
+            ? rawWorkspace.activeConversationId
+            : conversations[0].id
+      };
+    }
+  }
+
+  if (!rawWorkspaces && isConversationArray(stored.conversations)) {
+    const conversations = normalizeStoredConversations(stored.conversations, "daily");
+    workspaces.daily = {
+      conversations,
+      activeConversationId:
+        typeof stored.activeConversationId === "string" &&
+        conversations.some((conversation) => conversation.id === stored.activeConversationId)
+          ? stored.activeConversationId
+          : conversations[0].id
     };
+  }
+
+  return workspaces;
+}
+
+function normalizeStoredConversations(conversations: Conversation[], mode: ChatMode) {
+  const normalized = conversations.map((conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map((message) => ({
+      ...message,
+      attachments: message.attachments || []
+    }))
+  }));
+
+  const firstMessage = normalized[0]?.messages[0];
+  const shouldRefreshWelcome =
+    firstMessage?.role === "assistant" &&
+    (firstMessage.content.includes("喵～你好呀！我是喵语助手。") || firstMessage.content.includes("喵～这里是"));
+
+  if (!shouldRefreshWelcome) {
+    return normalized;
+  }
+
+  return [
+    {
+      ...normalized[0],
+      messages: [{ ...firstMessage, content: MODE_CONFIGS[mode].welcome }, ...normalized[0].messages.slice(1)]
+    },
+    ...normalized.slice(1)
+  ];
+}
+
+function makeTitle(prompt: string, attachments: Attachment[]) {
+  const textTitle = prompt.replace(/\s+/g, " ").slice(0, 18);
+  if (textTitle) return textTitle;
+  return attachments[0]?.name.slice(0, 18) || "新的喵语对话";
+}
+
+function attachmentPreviewText(attachments: Attachment[]) {
+  if (!attachments.length) return "";
+  return attachments.map((attachment) => `${attachment.name} (${attachment.type || "文件"}, ${formatBytes(attachment.size)})`).join("\n");
+}
+
+async function readAttachment(file: File): Promise<Attachment> {
+  const id = createId("att");
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  const kind = file.type.startsWith("image/") ? "image" : isReadableTextFile(file, extension) ? "text" : "file";
+
+  if (kind === "image") {
+    const previewUrl = await readImagePreview(file);
+    return {
+      id,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      kind,
+      previewUrl
+    };
+  }
+
+  if (kind === "text") {
+    const text = await readFileAsText(file);
+    return {
+      id,
+      name: file.name,
+      type: file.type || `text/${extension}`,
+      size: file.size,
+      kind,
+      textContent: text.slice(0, maxStoredTextChars)
+    };
+  }
+
+  return {
+    id,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    kind
+  };
+}
+
+function isReadableTextFile(file: File, extension: string) {
+  return file.size <= maxReadableTextBytes && (file.type.startsWith("text/") || textExtensions.has(extension));
+}
+
+function readFileAsText(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
   });
 }
 
-function normalizeAdvancedSettings(settings?: Partial<AdvancedSettings>): AdvancedSettings {
-  return {
-    reasoningEffort: settings?.reasoningEffort === "high" ? "high" : "max"
-  };
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function readImagePreview(file: File) {
+  const dataUrl = await readFileAsDataUrl(file);
+  if (dataUrl.length <= maxPreviewBytes) return dataUrl;
+  return compressImageDataUrl(dataUrl).catch(() => undefined);
+}
+
+function compressImageDataUrl(dataUrl: string) {
+  return new Promise<string | undefined>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxImagePreviewEdge / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(undefined);
+        return;
+      }
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", compressedImageQuality);
+      resolve(compressed.length <= maxPreviewBytes ? compressed : undefined);
+    };
+    image.onerror = () => reject(new Error("图片预览生成失败"));
+    image.src = dataUrl;
+  });
+}
+
+function formatBytes(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }

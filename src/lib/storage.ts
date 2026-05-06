@@ -1,23 +1,22 @@
-import type { AdvancedSettings, ChatMode, Conversation } from "../types";
+import type { ChatMode, Conversation, ModeWorkspace } from "../types";
 
-const STORAGE_KEY = "miaoyu-assistant-state-v1";
+const STORAGE_KEY = "miaoyu-assistant-state-v2";
 
 export interface StoredState {
-  conversations: Conversation[];
-  activeConversationId: string;
-  mode: ChatMode;
-  advanced: AdvancedSettings;
-  continuousVoiceEnabled: boolean;
-  voiceReplyEnabled: boolean;
-  voiceDefaultsVersion: number;
-  apiBaseUrl: string;
+  version: 2;
+  activeMode: ChatMode;
+  workspaces: Record<ChatMode, ModeWorkspace>;
+  sidebarCollapsed: boolean;
   offlineFallbackEnabled: boolean;
 }
 
-export function loadState(): Partial<StoredState> {
+export function loadState(): Partial<StoredState> & Record<string, unknown> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const nextRaw = localStorage.getItem(STORAGE_KEY);
+    if (nextRaw) return JSON.parse(nextRaw);
+
+    const legacyRaw = localStorage.getItem("miaoyu-assistant-state-v1");
+    return legacyRaw ? JSON.parse(legacyRaw) : {};
   } catch {
     return {};
   }
@@ -29,4 +28,8 @@ export function saveState(state: StoredState) {
   } catch {
     return;
   }
+}
+
+export function isConversationArray(value: unknown): value is Conversation[] {
+  return Array.isArray(value);
 }

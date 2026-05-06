@@ -28,11 +28,69 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m15 18-6-6 6-6" />
+    </IconBase>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m9 18 6-6-6-6" />
+    </IconBase>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <path d="m21 21-4.2-4.2" />
       <circle cx="10.8" cy="10.8" r="6" />
+    </IconBase>
+  );
+}
+
+export function FolderIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-9Z" />
+    </IconBase>
+  );
+}
+
+export function CalculatorIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01" />
+    </IconBase>
+  );
+}
+
+export function CodeIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" />
+    </IconBase>
+  );
+}
+
+export function FileIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+      <path d="M14 3v5h5" />
+    </IconBase>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
     </IconBase>
   );
 }
