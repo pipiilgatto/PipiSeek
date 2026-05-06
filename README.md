@@ -23,24 +23,8 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:5173`。远程 iPhone 访问推荐使用 GitHub Pages：
-
-```text
-https://pipiilgatto.github.io/PipiSeek/
-```
-
-应用固定通过 `https://pipicat.xin/api/chat` 调用服务端代理；不要把 DeepSeek key 放进前端代码。
-
-生产预览仍可使用：
-
-```bash
-npm run build
-npm run serve
-```
-
 For an always-on Arch Linux laptop deployment, see `docs/arch-linux-deploy.md`.
 
-For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must call a separate Node proxy; do not put `DEEPSEEK_API_KEY` in any frontend or Pages build variable.
 
 ## 模式
 
