@@ -178,3 +178,12 @@ export function TrashIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M10 17 15 12l-5-5M15 12H3" />
+      <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
+    </IconBase>
+  );
+}

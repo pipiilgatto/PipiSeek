@@ -1,5 +1,6 @@
 import { getOfflineFallback } from "../data/fallbacks";
 import type { Attachment, ChatMessage, ChatRoute } from "../types";
+import type { AuthSession } from "./auth";
 
 const API_BASE_URL = "https://pipicat.xin";
 const maxImageParts = 2;
@@ -12,15 +13,14 @@ type OutboundContentPart =
 interface SendChatOptions {
   messages: ChatMessage[];
   route: ChatRoute;
+  authSession?: AuthSession | null;
   onChunk: (chunk: string) => void;
 }
 
-export async function streamAssistantReply({ messages, route, onChunk }: SendChatOptions) {
+export async function streamAssistantReply({ messages, route, authSession, onChunk }: SendChatOptions) {
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
+    headers: requestHeaders(authSession),
     body: JSON.stringify({
       mode: route.mode,
       model: route.model,
@@ -46,6 +46,9 @@ export async function streamAssistantReply({ messages, route, onChunk }: SendCha
       errorText = errorPayload.error || errorText;
     } catch {
       errorText = response.statusText || errorText;
+    }
+    if (response.status === 401) {
+      throw new Error(`AUTH_REQUIRED:${errorText}`);
     }
     throw new Error(errorText);
   }
@@ -122,4 +125,16 @@ function formatBytes(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function requestHeaders(authSession?: AuthSession | null) {
+  const headers: Record<string, string> = {
+    "content-type": "application/json"
+  };
+
+  if (authSession?.source === "server") {
+    headers.authorization = `Bearer ${authSession.token}`;
+  }
+
+  return headers;
 }

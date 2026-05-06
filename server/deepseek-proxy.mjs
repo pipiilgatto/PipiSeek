@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEEPSEEK_BASE_URL } from "./deepseek-config.mjs";
@@ -86,7 +87,7 @@ function applyCors(req, res) {
 
   res.setHeader("access-control-allow-origin", origin);
   res.setHeader("access-control-allow-methods", "POST, OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type");
+  res.setHeader("access-control-allow-headers", "content-type, authorization");
   res.setHeader("vary", "Origin");
   return true;
 }
@@ -97,6 +98,40 @@ export function handleCorsPreflight(req, res) {
     "cache-control": "no-store"
   });
   res.end();
+}
+
+export async function handleAuth(req, res) {
+  if (!applyCors(req, res)) return;
+
+  const configuredUsername = process.env.APP_LOGIN_USERNAME?.trim();
+  const configuredPassword = process.env.APP_LOGIN_PASSWORD;
+  const authSecret = process.env.APP_AUTH_SECRET?.trim();
+
+  if (!configuredUsername || !configuredPassword || !authSecret) {
+    sendJson(res, 503, { error: "登录服务尚未配置。" });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(req);
+  } catch (error) {
+    sendJson(res, 400, { error: error.message });
+    return;
+  }
+
+  const username = typeof payload.username === "string" ? payload.username.trim() : "";
+  const password = typeof payload.password === "string" ? payload.password : "";
+  if (!safeEqual(username, configuredUsername) || !safeEqual(password, configuredPassword)) {
+    sendJson(res, 401, { error: "用户名或密码不正确" });
+    return;
+  }
+
+  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  sendJson(res, 200, {
+    token: signAuthToken({ username, expiresAt }, authSecret),
+    expiresAt
+  });
 }
 
 function buildDeepSeekBody(payload) {
@@ -117,6 +152,7 @@ function buildDeepSeekBody(payload) {
 
 export async function proxyDeepSeek(req, res) {
   if (!applyCors(req, res)) return;
+  if (!requireAuth(req, res)) return;
 
   let payload;
   try {
@@ -203,4 +239,52 @@ export async function proxyDeepSeek(req, res) {
   } finally {
     res.end();
   }
+}
+
+function requireAuth(req, res) {
+  const configuredUsername = process.env.APP_LOGIN_USERNAME?.trim();
+  const configuredPassword = process.env.APP_LOGIN_PASSWORD;
+  const authSecret = process.env.APP_AUTH_SECRET?.trim();
+  if (!configuredUsername || !configuredPassword || !authSecret) return true;
+
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  const payload = verifyAuthToken(token, authSecret);
+  if (!payload || payload.username !== configuredUsername || payload.expiresAt <= Date.now()) {
+    sendJson(res, 401, { error: "请先登录。" });
+    return false;
+  }
+
+  return true;
+}
+
+function signAuthToken(payload, secret) {
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyAuthToken(token, secret) {
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature) return null;
+
+  const expectedSignature = createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+  if (!safeEqual(signature, expectedSignature)) return null;
+
+  try {
+    return JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function base64UrlEncode(value) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return timingSafeEqual(leftBuffer, rightBuffer);
 }

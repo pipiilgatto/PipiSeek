@@ -10,6 +10,7 @@ import {
   CloseIcon,
   CodeIcon,
   FolderIcon,
+  LogOutIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon
@@ -32,6 +33,7 @@ interface SidebarProps {
   onConversationSelect: (mode: ChatMode, id: string) => void;
   onNew: () => void;
   onClearMode: () => void;
+  onLogout: () => void;
 }
 
 export function Sidebar({
@@ -44,7 +46,8 @@ export function Sidebar({
   onModeSelect,
   onConversationSelect,
   onNew,
-  onClearMode
+  onClearMode,
+  onLogout
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
@@ -126,6 +129,9 @@ export function Sidebar({
         <div className="sidebar-footer">
           <button className="icon-button" type="button" onClick={onClearMode} aria-label={`清空${MODE_CONFIGS[activeMode].label}对话`}>
             <TrashIcon />
+          </button>
+          <button className="icon-button" type="button" onClick={onLogout} aria-label="退出登录">
+            <LogOutIcon />
           </button>
           <div className="profile-chip">
             <img src={appIcon192} alt="" />

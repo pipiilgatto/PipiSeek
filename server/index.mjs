@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleCorsPreflight, proxyDeepSeek, sendJson } from "./deepseek-proxy.mjs";
+import { handleAuth, handleCorsPreflight, proxyDeepSeek, sendJson } from "./deepseek-proxy.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const rootDir = normalize(join(__dirname, ".."));
@@ -44,6 +44,21 @@ async function serveStatic(req, res) {
 }
 
 createServer(async (req, res) => {
+  if (req.url?.startsWith("/api/auth")) {
+    if (req.method === "OPTIONS") {
+      handleCorsPreflight(req, res);
+      return;
+    }
+
+    if (req.method !== "POST") {
+      sendJson(res, 405, { error: "只支持 POST 请求" });
+      return;
+    }
+
+    await handleAuth(req, res);
+    return;
+  }
+
   if (req.url?.startsWith("/api/chat")) {
     if (req.method === "OPTIONS") {
       handleCorsPreflight(req, res);

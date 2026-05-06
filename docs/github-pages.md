@@ -5,7 +5,7 @@ GitHub Pages hosts the static PWA, but it cannot run the Node API proxy. To avoi
 ## Architecture
 
 ```text
-iPhone Safari -> GitHub Pages static app -> API proxy -> DeepSeek API
+iPhone Safari -> GitHub Pages static app -> https://pipicat.xin API proxy -> DeepSeek API
 ```
 
 The key belongs only on the Node proxy host:
@@ -13,11 +13,16 @@ The key belongs only on the Node proxy host:
 ```bash
 DEEPSEEK_API_KEY="your key"
 ALLOWED_ORIGINS="https://pipiilgatto.github.io"
+APP_LOGIN_USERNAME="your username"
+APP_LOGIN_PASSWORD="your app password"
+APP_AUTH_SECRET="generate a long random secret"
 ```
 
-`ALLOWED_ORIGINS` should include the GitHub Pages origin that is allowed to call `/api/chat`. This is browser-side protection, not strong authentication, so keep the backend URL private enough for your use case or put it behind Cloudflare Access if you need stronger access control.
+`ALLOWED_ORIGINS` should include the GitHub Pages origin that is allowed to call `/api/auth` and `/api/chat`.
 
-The frontend uses `https://api/chat` as the only remote API endpoint.
+The frontend login keeps casual visitors out of the app UI. The proxy login is the real quota protection: once `APP_LOGIN_USERNAME`, `APP_LOGIN_PASSWORD`, and `APP_AUTH_SECRET` are set on the Node host, `/api/chat` requires a valid bearer token from `/api/auth`.
+
+The frontend uses `https://pipicat.xin/api/chat` as the only remote API endpoint.
 
 ## Publish
 

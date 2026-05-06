@@ -213,7 +213,7 @@ svg {
 
 .sidebar-footer {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: 36px 36px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
@@ -627,6 +627,109 @@ svg {
   color: var(--teal-dark);
   background: var(--teal-soft);
   border: 1px solid #bfe8e4;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(18 147 141 / 0.1), transparent 24rem),
+    var(--bg);
+}
+
+.login-panel {
+  width: min(380px, 100%);
+  padding: 28px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.login-panel img {
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.login-panel h1,
+.login-panel p {
+  text-align: center;
+}
+
+.login-panel h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+.login-panel p {
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.login-panel form,
+.login-panel label {
+  display: grid;
+  gap: 10px;
+}
+
+.login-panel form {
+  gap: 14px;
+}
+
+.login-panel label span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.login-panel input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  outline: 0;
+}
+
+.login-panel input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgb(18 147 141 / 0.14);
+}
+
+.login-panel button {
+  min-height: 44px;
+  color: #fff;
+  background: var(--teal);
+  border-radius: var(--radius);
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.login-panel button:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.login-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.login-error {
+  padding: 9px 10px;
+  color: #a3422f;
+  background: var(--coral-soft);
+  border: 1px solid #ffd2c7;
   border-radius: var(--radius);
   font-size: 13px;
 }

@@ -2,9 +2,9 @@
 
 一个中文 PWA 聊天助手，界面结构接近 ChatGPT，后端通过 DeepSeek Chat Completion API 提供回复。
 
-## 配置 DeepSeek API
+## 配置服务端
 
-把 DeepSeek API key 放在本地 `.env.local`，不要把 key 写进代码：
+把 DeepSeek API key 和登录配置放在服务端 `.env.local`，不要把 key 或明文密码写进前端代码：
 
 ```bash
 cp .env.example .env.local
@@ -14,7 +14,12 @@ cp .env.example .env.local
 
 ```bash
 DEEPSEEK_API_KEY="你的 key"
+APP_LOGIN_USERNAME="你的用户名"
+APP_LOGIN_PASSWORD="你的访问密码"
+APP_AUTH_SECRET="一段足够长的随机字符串"
 ```
+
+前端 GitHub Pages 版本会显示登录页。真正防止别人消耗 DeepSeek 配额的是服务端 `APP_LOGIN_*` 配置；配置后 `/api/chat` 只接受登录后拿到的 token。
 
 ## 本地运行
 
@@ -23,8 +28,24 @@ npm install
 npm run dev
 ```
 
+打开 `http://localhost:5173`。远程 iPhone 访问推荐使用 GitHub Pages：
+
+```text
+https://pipiilgatto.github.io/PipiSeek/
+```
+
+应用固定通过 `https://pipicat.xin/api/chat` 调用服务端代理；不要把 DeepSeek key 放进前端代码。
+
+生产预览仍可使用：
+
+```bash
+npm run build
+npm run serve
+```
+
 For an always-on Arch Linux laptop deployment, see `docs/arch-linux-deploy.md`.
 
+For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must call a separate Node proxy; do not put `DEEPSEEK_API_KEY` in any frontend or Pages build variable.
 
 ## 模式
 

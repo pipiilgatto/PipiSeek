@@ -53,9 +53,16 @@ Set:
 ```bash
 DEEPSEEK_API_KEY="your key"
 ALLOWED_ORIGINS="https://pipiilgatto.github.io,http://localhost:5173"
+APP_LOGIN_USERNAME="your username"
+APP_LOGIN_PASSWORD="your app password"
+APP_AUTH_SECRET="generate a long random secret"
 ```
 
-Keep `.env.local` only on the laptop. It is ignored by git.
+Keep `.env.local` only on the laptop. It is ignored by git. `APP_AUTH_SECRET` can be generated with:
+
+```bash
+openssl rand -hex 32
+```
 
 ## 4. Build and test locally
 
@@ -70,8 +77,14 @@ In another SSH session:
 
 ```bash
 curl -i http://localhost:4187/
+curl -i -X POST http://localhost:4187/api/auth \
+  -H 'content-type: application/json' \
+  --data '{"username":"your username","password":"your app password"}'
+
+# Use the returned token below.
 curl -i -X POST http://localhost:4187/api/chat \
   -H 'content-type: application/json' \
+  -H 'authorization: Bearer YOUR_TOKEN' \
   --data '{"model":"deepseek-v4-flash","thinkingEnabled":false,"messages":[{"role":"user","content":"只回复 OK"}]}'
 ```
 

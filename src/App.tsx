@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 import { Composer } from "./components/Composer";
+import { LoginScreen } from "./components/LoginScreen";
 import { MenuIcon } from "./components/Icons";
 import { MessageBubble } from "./components/MessageBubble";
 import { ModeControls } from "./components/ModeControls";
 import { Sidebar } from "./components/Sidebar";
 import { fallbackReply, streamAssistantReply } from "./lib/api";
 import { appIcon192 } from "./lib/assets";
+import { clearAuthSession, loadAuthSession, type AuthSession } from "./lib/auth";
 import { MODE_CONFIGS, MODE_ORDER, chooseRoute, improvementRoute } from "./lib/routing";
 import { getSpeechSupport, speakAsMiaoyu, stopMiaoyuSpeech, type MiaoyuSpeechController } from "./lib/speech";
 import { isConversationArray, loadState, saveState } from "./lib/storage";
@@ -77,6 +79,7 @@ function createWorkspace(mode: ChatMode, conversations = [createWelcomeConversat
 
 export default function App() {
   const stored = useMemo(() => loadState(), []);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
   const [mode, setMode] = useState<ChatMode>(() => normalizeMode(stored.activeMode || stored.mode));
   const [workspaces, setWorkspaces] = useState<Record<ChatMode, ModeWorkspace>>(() => normalizeWorkspaces(stored));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => Boolean(stored.sidebarCollapsed));
@@ -138,6 +141,10 @@ export default function App() {
     };
   }, []);
 
+  if (!authSession) {
+    return <LoginScreen onLogin={setAuthSession} />;
+  }
+
   return (
     <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
       <Sidebar
@@ -155,6 +162,7 @@ export default function App() {
         onConversationSelect={handleConversationSelect}
         onNew={handleNewConversation}
         onClearMode={handleClearMode}
+        onLogout={handleLogout}
       />
 
       <main className="chat-main">
@@ -371,6 +379,7 @@ export default function App() {
       await streamAssistantReply({
         messages: requestMessages,
         route,
+        authSession,
         onChunk: (chunk) => {
           reply += chunk;
           patchMessage(assistantMessage.id, {
@@ -384,6 +393,10 @@ export default function App() {
         status: "idle"
       });
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith("AUTH_REQUIRED:")) {
+        clearAuthSession();
+        setAuthSession(null);
+      }
       const offlineText = offlineFallbackEnabled
         ? fallbackReply(prompt, error)
         : `喵～API 调用失败：${error instanceof Error ? error.message : "未知错误"}`;
@@ -425,6 +438,13 @@ export default function App() {
       .join("\n\n");
 
     await sendWithRoute(prompt, improvementRoute(mode), "不满意，请重新回答。", previousUser.attachments || []);
+  }
+
+  function handleLogout() {
+    clearAuthSession();
+    speechControllerRef.current?.stop();
+    stopMiaoyuSpeech();
+    setAuthSession(null);
   }
 }
 
