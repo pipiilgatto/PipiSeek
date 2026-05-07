@@ -1,4 +1,4 @@
-const CACHE_NAME = "miaoyu-assistant-v2";
+const CACHE_NAME = "miaoyu-assistant-v3";
 const scopeUrl = new URL(self.registration.scope);
 const scopedPath = (path) => new URL(path.replace(/^\/+/, ""), scopeUrl).pathname;
 const APP_SHELL = ["", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"].map(scopedPath);
