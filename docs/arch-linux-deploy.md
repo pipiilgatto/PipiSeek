@@ -117,10 +117,16 @@ For a quick temporary tunnel:
 cloudflared tunnel --url http://localhost:4187
 ```
 
-For GitHub Pages access, route your stable API hostname to the Node server. The checked-in frontend currently calls `https://pipicat.xin/api/chat`, so the production tunnel should point that hostname to the Arch laptop:
+For GitHub Pages access, route your stable API hostname to the Node server. The production tunnel should point that hostname to the Arch laptop:
 
 ```text
-pipicat.xin -> http://localhost:4187
+YOUR_API_HOST -> http://localhost:4187
+```
+
+If you use a different API hostname from the default production build, build the frontend with:
+
+```bash
+VITE_API_BASE_URL="https://YOUR_API_HOST" VITE_BASE_PATH=/PipiSeek/ npm run build
 ```
 
 Then install cloudflared as a Linux service using the command shown in the Cloudflare dashboard. If you are using a locally managed tunnel config, Cloudflare documents that Linux service installs expect config under `$HOME/.cloudflared/config.yml`, and when using `sudo` you may need to pass the config path explicitly:
@@ -131,12 +137,18 @@ sudo systemctl start cloudflared
 sudo systemctl status cloudflared
 ```
 
-## 7. iPhone install
+## 7. Phone install
 
-Open the stable HTTPS hostname in Safari, then:
+On iPhone, open the GitHub Pages app URL in Safari, then:
 
 1. Tap Share.
 2. Tap Add to Home Screen.
 3. Add it.
+
+On Android / OnePlus 12, open the GitHub Pages app URL in Chrome, then:
+
+1. Tap the three-dot menu.
+2. Tap Install app or Add to Home screen.
+3. Allow microphone permission when voice input is first used.
 
 If you switch from quick tunnel to a stable hostname, delete the old Home Screen app and add the stable URL again.

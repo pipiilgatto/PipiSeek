@@ -139,6 +139,15 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
+export function DownloadIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M5 21h14" />
+    </IconBase>
+  );
+}
+
 export function ThumbsUpIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -1147,6 +1147,35 @@ svg {
     line-height: 1.68;
   }
 
+  .code-card {
+    margin-right: -2px;
+    margin-left: -2px;
+    border-radius: 7px;
+  }
+
+  .code-header {
+    padding: 6px 8px 6px 10px;
+  }
+
+  .code-actions button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .markdown-body pre {
+    max-height: 52vh;
+    padding: 11px 10px;
+  }
+
+  .markdown-body pre code {
+    font-size: 12.5px;
+    line-height: 1.62;
+  }
+
+  .math-display {
+    padding: 8px 0;
+  }
+
   .composer-wrap {
     width: 100%;
     padding: 0 10px calc(10px + env(safe-area-inset-bottom));
@@ -1377,13 +1406,19 @@ svg {
 }
 
 .code-card {
+  max-width: 100%;
   margin: 10px 0 12px;
   overflow: hidden;
   background: #14201e;
   border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.08);
 }
 
 .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 7px 12px;
   color: #bfe8e4;
   background: #0f1917;
@@ -1392,12 +1427,51 @@ svg {
   font-size: 12px;
 }
 
+.code-header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.code-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #d8f5f2;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 7px;
+}
+
+.code-actions button:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.code-actions svg {
+  width: 15px;
+  height: 15px;
+}
+
 .markdown-body pre {
+  max-width: 100%;
+  max-height: min(560px, 62vh);
   margin: 0;
   padding: 13px 14px;
   overflow-x: auto;
+  overflow-y: auto;
   color: #e8f8f6;
   background: transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 .markdown-body code {
@@ -1411,6 +1485,29 @@ svg {
   color: var(--teal-dark);
   background: var(--teal-soft);
   border-radius: 5px;
+}
+
+.math-display {
+  max-width: 100%;
+  margin: 12px 0 14px;
+  padding: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.math-inline {
+  max-width: 100%;
+  overflow-x: auto;
+  vertical-align: -0.12em;
+}
+
+.katex-display {
+  margin: 0;
+}
+
+.katex {
+  font-size: 1.03em;
 }
 
 .table-scroll {

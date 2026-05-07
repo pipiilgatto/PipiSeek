@@ -1,4 +1,5 @@
-const API_BASE_URL = "https://pipicat.xin";
+import { apiEndpoint } from "./config";
+
 const AUTH_STORAGE_KEY = "miaoyu-assistant-auth-v1";
 const expectedUsername = "pipi";
 const expectedLocalHash = "eefda96c0e9132ad8d11813904ec53513d0d2acfb43393f67ffb53fa193798ca";
@@ -60,7 +61,7 @@ export function clearAuthSession() {
 
 async function tryServerLogin(username: string, password: string): Promise<AuthSession | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth`, {
+    const response = await fetch(apiEndpoint("/api/auth"), {
       method: "POST",
       headers: {
         "content-type": "application/json"

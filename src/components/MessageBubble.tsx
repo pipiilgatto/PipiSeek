@@ -1,6 +1,9 @@
+import { useState, type ReactNode } from "react";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import type { Attachment, ChatMessage } from "../types";
 import { appIcon192 } from "../lib/assets";
-import { CopyIcon, FileIcon, PauseIcon, SpeakerIcon, ThumbsDownIcon, ThumbsUpIcon } from "./Icons";
+import { CopyIcon, DownloadIcon, FileIcon, PauseIcon, SpeakerIcon, ThumbsDownIcon, ThumbsUpIcon } from "./Icons";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -11,6 +14,7 @@ interface MessageBubbleProps {
 
 type MarkdownBlock =
   | { type: "code"; language: string; content: string }
+  | { type: "math"; content: string }
   | { type: "heading"; level: number; content: string }
   | { type: "hr" }
   | { type: "quote"; content: string }
@@ -39,7 +43,7 @@ export function MessageBubble({ message, onImprove, onToggleSpeak, isSpeaking }:
         {isAssistant ? (
           <div className="message-actions">
             <span>{modelLabel(message)}</span>
-            <button type="button" title="复制" onClick={() => navigator.clipboard?.writeText(message.content)}>
+            <button type="button" title="复制" onClick={() => writeClipboard(message.content)}>
               <CopyIcon />
             </button>
             <button type="button" title="满意">
@@ -93,14 +97,11 @@ function MarkdownContent({ text }: { text: string }) {
     <div className="formatted-text markdown-body">
       {blocks.map((block, index) => {
         if (block.type === "code") {
-          return (
-            <div className="code-card" key={index}>
-              {block.language ? <div className="code-header">{block.language}</div> : null}
-              <pre>
-                <code>{block.content}</code>
-              </pre>
-            </div>
-          );
+          return <CodeBlock key={index} language={block.language} content={block.content} index={index} />;
+        }
+
+        if (block.type === "math") {
+          return <MathBlock key={index} formula={block.content} />;
         }
 
         if (block.type === "heading") {
@@ -158,6 +159,50 @@ function MarkdownContent({ text }: { text: string }) {
   );
 }
 
+function CodeBlock({ language, content, index }: { language: string; content: string; index: number }) {
+  const [copied, setCopied] = useState(false);
+  const label = language || "code";
+
+  async function copyCode() {
+    await writeClipboard(content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  }
+
+  function downloadCode() {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `miaoyu-code-${sanitizeFilename(label)}-${index + 1}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="code-card">
+      <div className="code-header">
+        <span>{label}</span>
+        <div className="code-actions">
+          <button type="button" title={copied ? "已复制" : "复制代码"} aria-label={copied ? "已复制" : "复制代码"} onClick={copyCode}>
+            <CopyIcon />
+          </button>
+          <button type="button" title="下载 txt" aria-label="下载 txt" onClick={downloadCode}>
+            <DownloadIcon />
+          </button>
+        </div>
+      </div>
+      <pre>
+        <code>{content}</code>
+      </pre>
+    </div>
+  );
+}
+
+function MathBlock({ formula }: { formula: string }) {
+  return <div className="math-display" dangerouslySetInnerHTML={{ __html: renderMath(formula, true) }} />;
+}
+
 function parseMarkdown(text: string): MarkdownBlock[] {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const blocks: MarkdownBlock[] = [];
@@ -167,6 +212,20 @@ function parseMarkdown(text: string): MarkdownBlock[] {
     const line = lines[index];
     if (!line.trim()) {
       index += 1;
+      continue;
+    }
+
+    if (line.trim().startsWith("$$")) {
+      const math = collectMathBlock(lines, index, "$$", "$$");
+      blocks.push({ type: "math", content: math.content });
+      index = math.nextIndex;
+      continue;
+    }
+
+    if (line.trim().startsWith("\\[")) {
+      const math = collectMathBlock(lines, index, "\\[", "\\]");
+      blocks.push({ type: "math", content: math.content });
+      index = math.nextIndex;
       continue;
     }
 
@@ -234,6 +293,8 @@ function parseMarkdown(text: string): MarkdownBlock[] {
       index < lines.length &&
       lines[index].trim() &&
       !lines[index].trim().startsWith("```") &&
+      !lines[index].trim().startsWith("$$") &&
+      !lines[index].trim().startsWith("\\[") &&
       !/^(#{1,3})\s+/.test(lines[index]) &&
       !/^\s*---+\s*$/.test(lines[index]) &&
       !isTableStart(lines, index) &&
@@ -250,24 +311,222 @@ function parseMarkdown(text: string): MarkdownBlock[] {
   return blocks;
 }
 
-function renderInline(text: string) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/g).filter(Boolean);
-  return parts.map((part, index) => {
-    if (part.startsWith("`") && part.endsWith("`")) return <code key={index}>{part.slice(1, -1)}</code>;
-    if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
-    if (link) {
-      const href = sanitizeHref(link[2]);
-      if (href) {
-        return (
-          <a key={index} href={href} target="_blank" rel="noreferrer">
-            {link[1]}
-          </a>
-        );
-      }
+function collectMathBlock(lines: string[], startIndex: number, startDelimiter: string, endDelimiter: string) {
+  const content: string[] = [];
+  const firstLine = lines[startIndex].trim();
+  let remainder = firstLine.slice(startDelimiter.length);
+  let closeIndex = findUnescaped(remainder, endDelimiter);
+
+  if (closeIndex >= 0) {
+    return {
+      content: remainder.slice(0, closeIndex).trim(),
+      nextIndex: startIndex + 1
+    };
+  }
+
+  if (remainder.trim()) content.push(remainder);
+
+  let index = startIndex + 1;
+  while (index < lines.length) {
+    const line = lines[index];
+    closeIndex = findUnescaped(line, endDelimiter);
+    if (closeIndex >= 0) {
+      content.push(line.slice(0, closeIndex));
+      return {
+        content: content.join("\n").trim(),
+        nextIndex: index + 1
+      };
     }
-    return <span key={index}>{part}</span>;
+    content.push(line);
+    index += 1;
+  }
+
+  return {
+    content: content.join("\n").trim(),
+    nextIndex: index
+  };
+}
+
+function renderInline(text: string) {
+  const nodes: ReactNode[] = [];
+  let index = 0;
+
+  while (index < text.length) {
+    const nextToken = nextInlineToken(text, index);
+    if (!nextToken) {
+      nodes.push(<span key={nodes.length}>{text.slice(index)}</span>);
+      break;
+    }
+
+    if (nextToken.start > index) {
+      nodes.push(<span key={nodes.length}>{text.slice(index, nextToken.start)}</span>);
+    }
+
+    if (nextToken.type === "code") {
+      nodes.push(<code key={nodes.length}>{nextToken.content}</code>);
+    } else if (nextToken.type === "bold") {
+      nodes.push(<strong key={nodes.length}>{renderInline(nextToken.content)}</strong>);
+    } else if (nextToken.type === "link") {
+      const href = sanitizeHref(nextToken.href);
+      nodes.push(
+        href ? (
+          <a key={nodes.length} href={href} target="_blank" rel="noreferrer">
+            {nextToken.label}
+          </a>
+        ) : (
+          <span key={nodes.length}>{nextToken.raw}</span>
+        )
+      );
+    } else if (nextToken.type === "math") {
+      nodes.push(
+        <span
+          key={nodes.length}
+          className="math-inline"
+          dangerouslySetInnerHTML={{ __html: renderMath(nextToken.content, false) }}
+        />
+      );
+    }
+
+    index = nextToken.end;
+  }
+
+  return nodes;
+}
+
+type InlineToken =
+  | { type: "code"; start: number; end: number; content: string }
+  | { type: "bold"; start: number; end: number; content: string }
+  | { type: "link"; start: number; end: number; label: string; href: string; raw: string }
+  | { type: "math"; start: number; end: number; content: string };
+
+function nextInlineToken(text: string, fromIndex: number): InlineToken | null {
+  const candidates = [
+    inlineCodeToken(text, fromIndex),
+    inlineBoldToken(text, fromIndex),
+    inlineLinkToken(text, fromIndex),
+    inlineMathToken(text, fromIndex)
+  ].filter(Boolean) as InlineToken[];
+
+  if (!candidates.length) return null;
+  return candidates.sort((a, b) => a.start - b.start || a.end - b.end)[0];
+}
+
+function inlineCodeToken(text: string, fromIndex: number): InlineToken | null {
+  const start = text.indexOf("`", fromIndex);
+  if (start < 0) return null;
+  const end = text.indexOf("`", start + 1);
+  if (end < 0) return null;
+  return { type: "code", start, end: end + 1, content: text.slice(start + 1, end) };
+}
+
+function inlineBoldToken(text: string, fromIndex: number): InlineToken | null {
+  const start = text.indexOf("**", fromIndex);
+  if (start < 0) return null;
+  const end = text.indexOf("**", start + 2);
+  if (end < 0) return null;
+  return { type: "bold", start, end: end + 2, content: text.slice(start + 2, end) };
+}
+
+function inlineLinkToken(text: string, fromIndex: number): InlineToken | null {
+  const start = text.indexOf("[", fromIndex);
+  if (start < 0) return null;
+  const labelEnd = text.indexOf("](", start + 1);
+  if (labelEnd < 0) return null;
+  const hrefEnd = text.indexOf(")", labelEnd + 2);
+  if (hrefEnd < 0) return null;
+  return {
+    type: "link",
+    start,
+    end: hrefEnd + 1,
+    label: text.slice(start + 1, labelEnd),
+    href: text.slice(labelEnd + 2, hrefEnd),
+    raw: text.slice(start, hrefEnd + 1)
+  };
+}
+
+function inlineMathToken(text: string, fromIndex: number): InlineToken | null {
+  const parenStart = text.indexOf("\\(", fromIndex);
+  const bracketStart = text.indexOf("\\[", fromIndex);
+  const dollarStart = findInlineDollar(text, fromIndex);
+
+  if (
+    bracketStart >= 0 &&
+    (parenStart < 0 || bracketStart < parenStart) &&
+    (dollarStart < 0 || bracketStart < dollarStart)
+  ) {
+    const end = findUnescaped(text, "\\]", bracketStart + 2);
+    if (end >= 0) return { type: "math", start: bracketStart, end: end + 2, content: text.slice(bracketStart + 2, end) };
+  }
+
+  if (parenStart >= 0 && (dollarStart < 0 || parenStart < dollarStart)) {
+    const end = findUnescaped(text, "\\)", parenStart + 2);
+    if (end >= 0) return { type: "math", start: parenStart, end: end + 2, content: text.slice(parenStart + 2, end) };
+  }
+
+  if (dollarStart >= 0) {
+    const end = findUnescaped(text, "$", dollarStart + 1);
+    if (end >= 0) return { type: "math", start: dollarStart, end: end + 1, content: text.slice(dollarStart + 1, end) };
+  }
+
+  return null;
+}
+
+function renderMath(formula: string, displayMode: boolean) {
+  return katex.renderToString(formula, {
+    displayMode,
+    throwOnError: false,
+    strict: "ignore",
+    trust: false
   });
+}
+
+function findInlineDollar(text: string, fromIndex: number) {
+  let index = findUnescaped(text, "$", fromIndex);
+  while (index >= 0) {
+    const previous = text[index - 1];
+    const next = text[index + 1];
+    if (text[index + 1] !== "$" && previous !== "$" && next && !/\s/.test(next)) return index;
+    index = findUnescaped(text, "$", index + 1);
+  }
+  return -1;
+}
+
+function findUnescaped(text: string, needle: string, fromIndex = 0) {
+  let index = text.indexOf(needle, fromIndex);
+  while (index >= 0) {
+    if (!isEscaped(text, index)) return index;
+    index = text.indexOf(needle, index + needle.length);
+  }
+  return -1;
+}
+
+function isEscaped(text: string, index: number) {
+  let slashCount = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === "\\"; cursor -= 1) {
+    slashCount += 1;
+  }
+  return slashCount % 2 === 1;
+}
+
+function sanitizeFilename(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "code";
+}
+
+async function writeClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function isTableStart(lines: string[], index: number) {

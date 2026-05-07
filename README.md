@@ -21,6 +21,12 @@ APP_AUTH_SECRET="一段足够长的随机字符串"
 
 前端 GitHub Pages 版本会显示登录页。真正防止别人消耗 DeepSeek 配额的是服务端 `APP_LOGIN_*` 配置；配置后 `/api/chat` 只接受登录后拿到的 token。
 
+如果你改用自己的代理域名，构建前设置：
+
+```bash
+VITE_API_BASE_URL="https://YOUR_API_HOST"
+```
+
 ## 本地运行
 
 ```bash
@@ -34,7 +40,7 @@ npm run dev
 https://pipiilgatto.github.io/PipiSeek/
 ```
 
-应用固定通过 `https://pipicat.xin/api/chat` 调用服务端代理；不要把 DeepSeek key 放进前端代码。
+应用通过服务端代理调用 DeepSeek；不要把 DeepSeek key、代理域名或明文密码写进前端代码和公开文档。
 
 生产预览仍可使用：
 
@@ -54,6 +60,12 @@ For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must c
 - 编程模式：代码、调试、架构、agent 与 app 开发。固定 `deepseek-v4-pro`，开启 thinking，reasoning effort 为 `max`。
 - 三个模式各自保存独立对话历史；左侧按模式文件夹分组。
 - 输入框支持上传图片、文本和常见文件作为补充材料；可解析的小文本会随问题提交，压缩后的图片会作为视觉材料提交。
+
+## 手机安装
+
+iPhone：用 Safari 打开 GitHub Pages 地址，点 Share，再点 Add to Home Screen。
+
+Android / OnePlus 12：用 Chrome 打开 GitHub Pages 地址，点右上角三点菜单，再点 Install app 或 Add to Home screen。首次使用语音输入时允许麦克风权限；如果 Chrome 没显示安装入口，刷新一次页面或清除该站点的旧缓存后再打开。
 
 ## 离线兜底
 

@@ -5,7 +5,7 @@ GitHub Pages hosts the static PWA, but it cannot run the Node API proxy. To avoi
 ## Architecture
 
 ```text
-iPhone Safari -> GitHub Pages static app -> https://pipicat.xin API proxy -> DeepSeek API
+iPhone or Android browser -> GitHub Pages static app -> HTTPS API proxy -> DeepSeek API
 ```
 
 The key belongs only on the Node proxy host:
@@ -22,7 +22,11 @@ APP_AUTH_SECRET="generate a long random secret"
 
 The frontend login keeps casual visitors out of the app UI. The proxy login is the real quota protection: once `APP_LOGIN_USERNAME`, `APP_LOGIN_PASSWORD`, and `APP_AUTH_SECRET` are set on the Node host, `/api/chat` requires a valid bearer token from `/api/auth`.
 
-The frontend uses `https://pipicat.xin/api/chat` as the only remote API endpoint.
+If you use a different proxy host, build the frontend with:
+
+```bash
+VITE_API_BASE_URL="https://YOUR_API_HOST" VITE_BASE_PATH=/PipiSeek/ npm run build
+```
 
 ## Publish
 
@@ -45,3 +49,7 @@ https://pipiilgatto.github.io/PipiSeek/
 ```
 
 Then use Share -> Add to Home Screen.
+
+## Android / OnePlus 12
+
+Open the Pages URL in Chrome, then use the three-dot menu -> Install app. If Chrome only shows Add to Home screen, use that option; it still installs the PWA shell with the app icon. Allow microphone access when voice input is first used.

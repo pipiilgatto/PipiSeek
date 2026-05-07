@@ -2,12 +2,15 @@
   "name": "喵语助手",
   "short_name": "喵语",
   "description": "使用 DeepSeek API 的中文私人聊天助手",
+  "id": "/PipiSeek/",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "orientation": "portrait-primary",
   "background_color": "#f8faf9",
   "theme_color": "#f8faf9",
+  "categories": ["productivity", "education", "utilities"],
   "icons": [
     {
       "src": "icon-192.png",

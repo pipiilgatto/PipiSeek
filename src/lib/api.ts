@@ -1,8 +1,8 @@
 import { getOfflineFallback } from "../data/fallbacks";
 import type { Attachment, ChatMessage, ChatRoute } from "../types";
 import type { AuthSession } from "./auth";
+import { apiEndpoint } from "./config";
 
-const API_BASE_URL = "https://pipicat.xin";
 const maxImageParts = 2;
 const maxImagePartChars = 760_000;
 
@@ -18,7 +18,7 @@ interface SendChatOptions {
 }
 
 export async function streamAssistantReply({ messages, route, authSession, onChunk }: SendChatOptions) {
-  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+  const response = await fetch(apiEndpoint("/api/chat"), {
     method: "POST",
     headers: requestHeaders(authSession),
     body: JSON.stringify({
