@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";
 import { basename, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,9 +82,13 @@ createServer(async (req, res) => {
   }
 
   if (!existsSync(distDir)) {
-    const html = await readFile(join(rootDir, "index.html"), "utf8");
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(html);
+    res.writeHead(503, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store"
+    });
+    res.end(
+      "<!doctype html><meta charset=\"utf-8\"><title>Build required</title><h1>Production build is missing</h1><p>Run <code>npm run build</code> in the app directory, then restart the service.</p>"
+    );
     return;
   }
 

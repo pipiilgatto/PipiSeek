@@ -220,3 +220,23 @@ sudo systemctl restart miaoyu-assistant
 ```
 
 The DeepSeek key and app password stay in `.env.local`, so `git pull` will not overwrite them.
+
+## Blank Page Troubleshooting
+
+If the domain opens but shows a blank page, check whether the production build exists:
+
+```bash
+cd /opt/miaoyu-assistant
+ls dist/index.html
+curl -i http://127.0.0.1:4187/
+```
+
+If `dist/index.html` is missing, build and restart:
+
+```bash
+npm ci
+npm run build
+sudo systemctl restart miaoyu-assistant
+```
+
+The public HTML should reference `/assets/...js`. If it references `/src/main.tsx` or contains `%BASE_URL%`, the app is serving the unbuilt development HTML.
