@@ -1,11 +1,13 @@
-# GitHub Pages Deployment
+# Legacy GitHub Pages Deployment
 
-GitHub Pages hosts the static PWA, but it cannot run the Node API proxy. To avoid leaking `DEEPSEEK_API_KEY`, never add the key to Vite variables, frontend code, GitHub Pages variables, or GitHub Actions secrets for the Pages build.
+This app is now intended to be self-hosted on the Arch Linux laptop. Keep this page only as a legacy reference for static-only GitHub Pages publishing.
+
+GitHub Pages can host the static PWA, but it cannot run the Node API proxy. To avoid leaking `DEEPSEEK_API_KEY`, never add the key to Vite variables, frontend code, GitHub Pages variables, or GitHub Actions secrets for the Pages build.
 
 ## Architecture
 
 ```text
-iPhone or Android browser -> GitHub Pages static app -> HTTPS API proxy -> DeepSeek API
+iPhone or Android browser -> GitHub Pages static app -> separate HTTPS API proxy -> DeepSeek API
 ```
 
 The key belongs only on the Node proxy host:
@@ -18,7 +20,7 @@ APP_LOGIN_PASSWORD="your app password"
 APP_AUTH_SECRET="generate a long random secret"
 ```
 
-`ALLOWED_ORIGINS` should include the GitHub Pages origin that is allowed to call `/api/auth` and `/api/chat`.
+`ALLOWED_ORIGINS` should include only the specific Pages origin that is allowed to call `/api/auth` and `/api/chat`.
 
 The frontend login keeps casual visitors out of the app UI. The proxy login is the real quota protection: once `APP_LOGIN_USERNAME`, `APP_LOGIN_PASSWORD`, and `APP_AUTH_SECRET` are set on the Node host, `/api/chat` requires a valid bearer token from `/api/auth`.
 
@@ -42,13 +44,7 @@ Configure GitHub Pages to deploy from the `gh-pages` branch root. No GitHub Acti
 
 ## iPhone
 
-Open the Pages URL in Safari:
-
-```text
-https://pipiilgatto.github.io/PipiSeek/
-```
-
-Then use Share -> Add to Home Screen.
+Open the Pages URL in Safari, then use Share -> Add to Home Screen.
 
 ## Android / OnePlus 12
 

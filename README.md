@@ -1,6 +1,6 @@
 # 喵语助手
 
-一个中文 PWA 聊天助手，界面结构接近 ChatGPT，后端通过 DeepSeek Chat Completion API 提供回复。
+一个中文私人 PWA 聊天助手。推荐部署方式是把前端静态文件和 `/api` 代理都放在自己的 Arch Linux 笔记本上运行，手机通过 Cloudflare Tunnel 的 HTTPS 地址访问。
 
 ## 配置服务端
 
@@ -19,13 +19,7 @@ APP_LOGIN_PASSWORD="你的访问密码"
 APP_AUTH_SECRET="一段足够长的随机字符串"
 ```
 
-前端 GitHub Pages 版本会显示登录页。真正防止别人消耗 DeepSeek 配额的是服务端 `APP_LOGIN_*` 配置；配置后 `/api/chat` 只接受登录后拿到的 token。
-
-如果你改用自己的代理域名，构建前设置：
-
-```bash
-VITE_API_BASE_URL="https://YOUR_API_HOST"
-```
+默认构建会使用同源 `/api`，也就是浏览器打开哪个 HTTPS 域名，聊天请求就发到同一个域名的 `/api/auth` 和 `/api/chat`。这适合完整自托管，不需要 GitHub Pages。
 
 ## 本地运行
 
@@ -34,11 +28,7 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:5173`。远程 iPhone 访问推荐使用 GitHub Pages：
-
-```text
-https://pipiilgatto.github.io/PipiSeek/
-```
+打开 `http://localhost:5173`。
 
 应用通过服务端代理调用 DeepSeek；不要把 DeepSeek key、代理域名或明文密码写进前端代码和公开文档。
 
@@ -49,9 +39,7 @@ npm run build
 npm run serve
 ```
 
-For an always-on Arch Linux laptop deployment, see `docs/arch-linux-deploy.md`.
-
-For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must call a separate Node proxy; do not put `DEEPSEEK_API_KEY` in any frontend or Pages build variable.
+完整 Arch Linux 笔记本部署见 `docs/arch-linux-deploy.md`。GitHub Pages 只适合临时静态托管；长期使用建议让 Arch 笔记本同时托管前端和 API。
 
 ## 模式
 
@@ -63,9 +51,9 @@ For GitHub Pages static hosting, see `docs/github-pages.md`. GitHub Pages must c
 
 ## 手机安装
 
-iPhone：用 Safari 打开 GitHub Pages 地址，点 Share，再点 Add to Home Screen。
+iPhone：用 Safari 打开你的 Cloudflare HTTPS 地址，点 Share，再点 Add to Home Screen。
 
-Android / OnePlus 12：用 Chrome 打开 GitHub Pages 地址，点右上角三点菜单，再点 Install app 或 Add to Home screen。首次使用语音输入时允许麦克风权限；如果 Chrome 没显示安装入口，刷新一次页面或清除该站点的旧缓存后再打开。
+Android / OnePlus 12：用 Chrome 打开你的 Cloudflare HTTPS 地址，点右上角三点菜单，再点 Install app 或 Add to Home screen。首次使用语音输入时允许麦克风权限；如果 Chrome 没显示安装入口，刷新一次页面或清除该站点的旧缓存后再打开。
 
 ## 离线兜底
 

@@ -79,6 +79,8 @@ function applyCors(req, res) {
   const origin = req.headers.origin?.replace(/\/+$/, "");
   if (!origin) return true;
 
+  if (isSameOriginRequest(req, origin)) return true;
+
   const allowedOrigins = configuredAllowedOrigins();
   if (!allowedOrigins.includes(origin)) {
     sendJson(res, 403, { error: "当前来源没有被允许调用 API。请配置 ALLOWED_ORIGINS。" });
@@ -90,6 +92,16 @@ function applyCors(req, res) {
   res.setHeader("access-control-allow-headers", "content-type, authorization");
   res.setHeader("vary", "Origin");
   return true;
+}
+
+function isSameOriginRequest(req, origin) {
+  try {
+    const originUrl = new URL(origin);
+    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
+    return Boolean(host && originUrl.host === host);
+  } catch {
+    return false;
+  }
 }
 
 export function handleCorsPreflight(req, res) {

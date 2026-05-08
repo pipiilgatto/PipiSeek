@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";
-import { extname, join, normalize } from "node:path";
+import { basename, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleAuth, handleCorsPreflight, proxyDeepSeek, sendJson } from "./deepseek-proxy.mjs";
 
@@ -20,7 +20,10 @@ const mimeTypes = new Map([
   [".png", "image/png"],
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
-  [".ico", "image/x-icon"]
+  [".ico", "image/x-icon"],
+  [".woff2", "font/woff2"],
+  [".woff", "font/woff"],
+  [".ttf", "font/ttf"]
 ]);
 
 async function serveStatic(req, res) {
@@ -36,9 +39,14 @@ async function serveStatic(req, res) {
 
   const filePath = existsSync(safePath) ? safePath : join(distDir, "index.html");
   const ext = extname(filePath);
+  const fileName = basename(filePath);
+  const cacheControl =
+    ext === ".html" || ext === ".webmanifest" || fileName === "sw.js"
+      ? "no-cache"
+      : "public, max-age=31536000, immutable";
   res.writeHead(200, {
     "content-type": mimeTypes.get(ext) || "application/octet-stream",
-    "cache-control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable"
+    "cache-control": cacheControl
   });
   createReadStream(filePath).pipe(res);
 }

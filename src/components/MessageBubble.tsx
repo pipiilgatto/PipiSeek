@@ -170,11 +170,11 @@ function CodeBlock({ language, content, index }: { language: string; content: st
   }
 
   function downloadCode() {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([codeBlockHtml(content, label)], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `miaoyu-code-${sanitizeFilename(label)}-${index + 1}.txt`;
+    anchor.download = `miaoyu-code-${sanitizeFilename(label)}-${index + 1}.html`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -187,7 +187,7 @@ function CodeBlock({ language, content, index }: { language: string; content: st
           <button type="button" title={copied ? "已复制" : "复制代码"} aria-label={copied ? "已复制" : "复制代码"} onClick={copyCode}>
             <CopyIcon />
           </button>
-          <button type="button" title="下载 txt" aria-label="下载 txt" onClick={downloadCode}>
+          <button type="button" title="下载 HTML" aria-label="下载 HTML" onClick={downloadCode}>
             <DownloadIcon />
           </button>
         </div>
@@ -510,6 +510,66 @@ function isEscaped(text: string, index: number) {
 
 function sanitizeFilename(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "code";
+}
+
+function codeBlockHtml(content: string, language: string) {
+  const title = `Miaoyu code block - ${language}`;
+  return `<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f8faf9;
+        color: #14201e;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 14px;
+        font-size: 18px;
+      }
+      pre {
+        margin: 0;
+        padding: 18px;
+        overflow: auto;
+        background: #14201e;
+        color: #e8f8f6;
+        border-radius: 10px;
+        line-height: 1.6;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 14px;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(language)}</h1>
+      <pre><code>${escapeHtml(content)}</code></pre>
+    </main>
+  </body>
+</html>
+`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 async function writeClipboard(text: string) {

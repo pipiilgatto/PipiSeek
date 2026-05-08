@@ -2,7 +2,7 @@
   "name": "喵语助手",
   "short_name": "喵语",
   "description": "使用 DeepSeek API 的中文私人聊天助手",
-  "id": "/PipiSeek/",
+  "id": ".",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

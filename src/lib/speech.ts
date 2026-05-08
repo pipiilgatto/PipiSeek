@@ -23,6 +23,11 @@ const maleVoicePatterns = [
   /yunjian|yunxi|yunyang|yunhao|kangkang|male|man|boy|男|男士/i
 ];
 
+const naturalVoicePatterns = [
+  /premium|enhanced|neural|natural/i,
+  /siri|google|microsoft|apple/i
+];
+
 type RecognitionConstructor = new () => SpeechRecognitionLike;
 
 interface SpeechRecognitionLike extends EventTarget {
@@ -146,13 +151,19 @@ export function speakAsMiaoyu(text: string, options: SpeakOptions = {}): MiaoyuS
     window.speechSynthesis.removeEventListener("voiceschanged", speak);
     if (timeoutId) window.clearTimeout(timeoutId);
 
-    const utterance = new SpeechSynthesisUtterance(text.trim().startsWith("喵") ? text : `喵～${text}`);
+    const spokenText = speechReadableText(text);
+    if (!spokenText) {
+      finish();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     const preferred = chooseCuteFemaleChineseVoice(window.speechSynthesis.getVoices());
     if (preferred) utterance.voice = preferred;
     utterance.lang = preferred?.lang || "zh-CN";
-    utterance.pitch = 1.55;
-    utterance.rate = 1.08;
-    utterance.volume = 1;
+    utterance.pitch = 1.04;
+    utterance.rate = 0.88;
+    utterance.volume = 0.94;
     utterance.onstart = () => options.onStart?.();
     utterance.onend = finish;
     utterance.onerror = finish;
@@ -206,7 +217,12 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
   else if (/Chinese|普通话|國語|粤语|中文/i.test(identity)) score += 18;
 
   if (/Ting|Mei|Xiao|Hui|Yao|Han|Hiu|Li/i.test(identity)) score += 16;
+  if (/Samantha|Ava|Zoe|Allison|Susan|Victoria|Karen|Moira|Serena/i.test(identity)) score += 14;
   if (voice.localService) score += 4;
+
+  for (const pattern of naturalVoicePatterns) {
+    if (pattern.test(identity)) score += 10;
+  }
 
   for (const pattern of femaleVoicePatterns) {
     if (pattern.test(identity)) score += 70;
@@ -217,4 +233,20 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
   }
 
   return score;
+}
+
+function speechReadableText(value: string) {
+  return value
+    .replace(/```[\s\S]*?```/g, " 代码内容省略 ")
+    .replace(/\$\$[\s\S]*?\$\$/g, " 公式 ")
+    .replace(/\\\[[\s\S]*?\\\]/g, " 公式 ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, " 链接 ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[#*_>|~=-]+/g, " ")
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
