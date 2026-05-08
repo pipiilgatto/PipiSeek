@@ -14,7 +14,7 @@ The key belongs only on the Node proxy host:
 
 ```bash
 DEEPSEEK_API_KEY="your key"
-ALLOWED_ORIGINS="https://pipiilgatto.github.io"
+ALLOWED_ORIGINS="https://YOUR_GITHUB_PAGES_ORIGIN"
 APP_LOGIN_USERNAME="your username"
 APP_LOGIN_PASSWORD="your app password"
 APP_AUTH_SECRET="generate a long random secret"
