@@ -1,20 +1,47 @@
 # Arch Linux Self-Hosting
 
-Use the Arch laptop as the only production host. The laptop serves both:
+This is the recommended production setup. The Arch laptop runs one Node server that serves both:
 
-- the built PWA from `dist`
-- the private API endpoints `/api/auth` and `/api/chat`
+- the built app at `/`
+- the private API proxy at `/api/auth` and `/api/chat`
 
-Phones access the app through one Cloudflare Tunnel HTTPS hostname. Do not use GitHub Pages for the shared app.
+Your phone opens one HTTPS hostname:
 
-## 1. Prepare Arch
+```text
+https://YOUR_APP_HOSTNAME/
+https://YOUR_APP_HOSTNAME/api/auth
+https://YOUR_APP_HOSTNAME/api/chat
+```
+
+Cloudflare Tunnel forwards that hostname to the Arch laptop:
+
+```text
+Cloudflare Tunnel -> http://localhost:4187
+```
+
+Because the app and API are same-origin, do not set `VITE_API_BASE_URL` for this setup.
+
+## Short Answer
+
+Yes, clone the public repo directly on the Arch laptop:
+
+```bash
+sudo mkdir -p /opt
+sudo chown "$USER":"$USER" /opt
+git clone https://github.com/pipiilgatto/PipiSeek.git /opt/miaoyu-assistant
+cd /opt/miaoyu-assistant
+```
+
+Then create `.env.local` on the Arch laptop only, build the app, run the systemd service, and point your Cloudflare Tunnel hostname to `http://localhost:4187`.
+
+## 1. Install System Packages
 
 ```bash
 sudo pacman -Syu
-sudo pacman -S git nodejs npm openssl rsync
+sudo pacman -S --needed git nodejs npm openssl
 ```
 
-Install `cloudflared` from Cloudflare's Linux package instructions, your package manager, or the AUR. For a quick binary install on x86-64 Linux:
+Install `cloudflared`. The most direct Arch-compatible path is the Linux binary:
 
 ```bash
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
@@ -23,58 +50,52 @@ sudo install -m 0755 cloudflared /usr/local/bin/cloudflared
 cloudflared --version
 ```
 
-## 2. Copy The Project
+## 2. Clone Or Update The App
 
-Recommended target:
-
-```bash
-sudo mkdir -p /opt/miaoyu-assistant
-sudo chown "$USER":"$USER" /opt/miaoyu-assistant
-```
-
-From the Mac:
+First install:
 
 ```bash
-rsync -av --delete \
-  --exclude node_modules \
-  --exclude dist \
-  --exclude .git \
-  --exclude .npm-cache \
-  --exclude .env \
-  --exclude .env.local \
-  /path/to/PipiSeek/ user@ARCH_LAPTOP_IP:/opt/miaoyu-assistant/
+git clone https://github.com/pipiilgatto/PipiSeek.git /opt/miaoyu-assistant
+cd /opt/miaoyu-assistant
 ```
 
-## 3. Configure Secrets
+Later updates:
 
-On the Arch laptop:
+```bash
+cd /opt/miaoyu-assistant
+git pull
+```
+
+## 3. Create Local Secrets
+
+Create the server-only env file:
 
 ```bash
 cd /opt/miaoyu-assistant
 cp .env.example .env.local
+openssl rand -hex 32
 nano .env.local
 ```
 
-Set:
+Use this shape:
 
 ```bash
 DEEPSEEK_API_KEY="your DeepSeek key"
 ALLOWED_ORIGINS=""
 APP_LOGIN_USERNAME="pipi"
 APP_LOGIN_PASSWORD="your private app password"
-APP_AUTH_SECRET="replace with output from openssl rand -hex 32"
+APP_AUTH_SECRET="paste the openssl rand output here"
 VITE_API_BASE_URL=""
 ```
 
-Keep `.env.local` only on the laptop. It is ignored by git. Generate the auth secret with:
+Important:
 
-```bash
-openssl rand -hex 32
-```
+- `.env.local` must stay only on the Arch laptop.
+- `.env.local` is ignored by git.
+- `ALLOWED_ORIGINS=""` is correct when the browser opens the app and calls the API from the same hostname.
+- `VITE_API_BASE_URL=""` keeps frontend requests relative, so the app calls `/api/auth` and `/api/chat` on the same hostname.
 
-`ALLOWED_ORIGINS` can stay empty for this self-hosted setup because the frontend and API are same-origin. Only set it if another separate website must call this API.
-
-## 4. Build And Test
+## 4. Build And Test Locally
 
 ```bash
 cd /opt/miaoyu-assistant
@@ -83,7 +104,7 @@ npm run build
 npm run serve
 ```
 
-In another SSH session:
+In another terminal:
 
 ```bash
 curl -i http://localhost:4187/
@@ -92,18 +113,9 @@ curl -i -X POST http://localhost:4187/api/auth \
   --data '{"username":"pipi","password":"your private app password"}'
 ```
 
-Use the returned token:
+If login returns a token, the app server is working. Stop the manual server with `Ctrl-C`.
 
-```bash
-curl -i -X POST http://localhost:4187/api/chat \
-  -H 'content-type: application/json' \
-  -H 'authorization: Bearer YOUR_TOKEN' \
-  --data '{"model":"deepseek-v4-flash","thinkingEnabled":false,"messages":[{"role":"user","content":"只回复 OK"}]}'
-```
-
-Stop the manual server with `Ctrl-C` after testing.
-
-## 5. Run As A Systemd Service
+## 5. Run The App With Systemd
 
 ```bash
 cd /opt/miaoyu-assistant
@@ -113,37 +125,56 @@ sudo systemctl enable --now miaoyu-assistant
 sudo systemctl status miaoyu-assistant
 ```
 
-Useful commands:
+Useful checks:
 
 ```bash
+curl -i http://localhost:4187/
 sudo journalctl -u miaoyu-assistant -f
 sudo systemctl restart miaoyu-assistant
 ```
 
-## 6. Expose With Cloudflare Tunnel
+## 6. Point Cloudflare Tunnel To The Same Server
 
-Temporary test tunnel:
-
-```bash
-cloudflared tunnel --url http://localhost:4187
-```
-
-Open the generated `https://...trycloudflare.com` URL on a phone and verify login/chat. For permanent use, create a named Cloudflare Tunnel and route your chosen hostname to:
+Use one public hostname for both the app and the API.
 
 ```text
-http://localhost:4187
+Public hostname: YOUR_APP_HOSTNAME
+Tunnel service: http://localhost:4187
 ```
 
-CLI flow:
+If you already have a hostname on Cloudflare Tunnel, move that hostname so it points to the Arch laptop's tunnel. Do not leave the old Mac tunnel running for the same hostname unless you intentionally want both machines to serve the app.
+
+### Dashboard Tunnel
+
+If you manage the tunnel in the Cloudflare Zero Trust dashboard:
+
+1. Open Zero Trust -> Networks -> Tunnels.
+2. Select your tunnel or create a new one.
+3. Add a public hostname.
+4. Set the hostname to `YOUR_APP_HOSTNAME`.
+5. Set service type to `HTTP`.
+6. Set service URL to `localhost:4187`.
+7. Install the connector on Arch with the token command Cloudflare shows.
+
+The command usually looks like:
+
+```bash
+sudo cloudflared service install YOUR_TUNNEL_TOKEN
+sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared
+```
+
+### CLI Tunnel
+
+If you manage the tunnel from the CLI:
 
 ```bash
 cloudflared tunnel login
 cloudflared tunnel create miaoyu-assistant
-cloudflared tunnel list
 cloudflared tunnel route dns miaoyu-assistant YOUR_APP_HOSTNAME
 ```
 
-If you use a locally managed tunnel config, the ingress should be:
+Create `~/.cloudflared/config.yml`:
 
 ```yaml
 tunnel: YOUR_TUNNEL_ID
@@ -155,7 +186,7 @@ ingress:
   - service: http_status:404
 ```
 
-Then install and start the tunnel service:
+Then install the tunnel service:
 
 ```bash
 sudo cloudflared --config /home/YOUR_LINUX_USER/.cloudflared/config.yml service install
@@ -163,33 +194,29 @@ sudo systemctl enable --now cloudflared
 sudo systemctl status cloudflared
 ```
 
-## 7. Install On Phones
+## 7. Final Phone Test
 
-iPhone:
+Open this on each phone:
 
-1. Open `https://YOUR_APP_HOSTNAME` in Safari.
-2. Tap Share.
-3. Tap Add to Home Screen.
-4. Open the new Home Screen app and log in.
+```text
+https://YOUR_APP_HOSTNAME
+```
 
-Android / OnePlus 12:
+Then:
 
-1. Open `https://YOUR_APP_HOSTNAME` in Chrome.
-2. Tap the three-dot menu.
-3. Tap Install app or Add to Home screen.
-4. Allow microphone permission when voice input is first used.
+- iPhone: Safari -> Share -> Add to Home Screen.
+- Android / OnePlus 12: Chrome -> three-dot menu -> Install app or Add to Home screen.
 
-If you change the hostname, delete the old Home Screen app and install the new URL again.
+The address bar should stay on `https://YOUR_APP_HOSTNAME`. Chat requests should go to `https://YOUR_APP_HOSTNAME/api/chat`, not to GitHub Pages and not to any separate API hostname.
 
-## 8. Update Later
-
-From the Mac, repeat the `rsync` command, then on Arch:
+## 8. Updating Later
 
 ```bash
 cd /opt/miaoyu-assistant
+git pull
 npm ci
 npm run build
 sudo systemctl restart miaoyu-assistant
 ```
 
-The DeepSeek key stays on the laptop throughout this process.
+The DeepSeek key and app password stay in `.env.local`, so `git pull` will not overwrite them.

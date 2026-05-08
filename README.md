@@ -2,6 +2,15 @@
 
 一个中文私人 PWA 聊天助手。推荐部署方式是把前端静态文件和 `/api` 代理都放在自己的 Arch Linux 笔记本上运行，手机通过 Cloudflare Tunnel 的 HTTPS 地址访问。
 
+Arch 笔记本上可以直接 clone 公开仓库：
+
+```bash
+git clone https://github.com/pipiilgatto/PipiSeek.git /opt/miaoyu-assistant
+cd /opt/miaoyu-assistant
+```
+
+完整步骤见 `docs/arch-linux-deploy.md`。
+
 ## 配置服务端
 
 把 DeepSeek API key 和登录配置放在服务端 `.env.local`，不要把 key 或明文密码写进前端代码：
@@ -39,7 +48,7 @@ npm run build
 npm run serve
 ```
 
-完整 Arch Linux 笔记本部署见 `docs/arch-linux-deploy.md`。GitHub Pages 只适合临时静态托管；长期使用建议让 Arch 笔记本同时托管前端和 API。
+GitHub Pages 只适合临时静态托管；长期使用建议让 Arch 笔记本同时托管前端和 API。
 
 ## 模式
 
