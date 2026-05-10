@@ -3,11 +3,12 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import type { Attachment, ChatMessage } from "../types";
 import { appIcon192 } from "../lib/assets";
-import { CopyIcon, DownloadIcon, FileIcon, PauseIcon, SpeakerIcon, ThumbsDownIcon, ThumbsUpIcon } from "./Icons";
+import { ContinueIcon, CopyIcon, DownloadIcon, FileIcon, PauseIcon, SpeakerIcon, ThumbsDownIcon, ThumbsUpIcon } from "./Icons";
 
 interface MessageBubbleProps {
   message: ChatMessage;
   onImprove: (messageId: string) => void;
+  onContinue: (messageId: string) => void;
   onToggleSpeak: (messageId: string, text: string) => void;
   isSpeaking: boolean;
 }
@@ -22,7 +23,7 @@ type MarkdownBlock =
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "paragraph"; content: string };
 
-export function MessageBubble({ message, onImprove, onToggleSpeak, isSpeaking }: MessageBubbleProps) {
+export function MessageBubble({ message, onImprove, onContinue, onToggleSpeak, isSpeaking }: MessageBubbleProps) {
   const isAssistant = message.role === "assistant";
 
   return (
@@ -51,6 +52,9 @@ export function MessageBubble({ message, onImprove, onToggleSpeak, isSpeaking }:
             </button>
             <button type="button" title="不满意，重新回答" onClick={() => onImprove(message.id)}>
               <ThumbsDownIcon />
+            </button>
+            <button type="button" title="继续回答" aria-label="继续回答" onClick={() => onContinue(message.id)}>
+              <ContinueIcon />
             </button>
             <button
               type="button"

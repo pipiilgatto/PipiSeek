@@ -130,6 +130,16 @@ export function PauseIcon(props: IconProps) {
   );
 }
 
+export function ContinueIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 12h12" />
+      <path d="m13 6 6 6-6 6" />
+      <path d="M5 5v14" />
+    </IconBase>
+  );
+}
+
 export function CopyIcon(props: IconProps) {
   return (
     <IconBase {...props}>

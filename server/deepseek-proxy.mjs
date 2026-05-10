@@ -6,6 +6,7 @@ import { DEEPSEEK_BASE_URL } from "./deepseek-config.mjs";
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const shellEnvKeys = new Set(Object.keys(process.env));
+const maxRequestBodyBytes = Number(process.env.MAX_CHAT_REQUEST_BYTES || 4_000_000);
 
 loadLocalEnvFile(".env");
 loadLocalEnvFile(".env.local");
@@ -39,17 +40,23 @@ function unquoteEnvValue(value) {
   return trimmed;
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = maxRequestBodyBytes) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let tooLarge = false;
     req.on("data", (chunk) => {
+      if (tooLarge) return;
       body += chunk;
-      if (body.length > 2_000_000) {
-        reject(new Error("请求内容过大"));
-        req.destroy();
+      if (body.length > maxBytes) {
+        tooLarge = true;
+        body = "";
       }
     });
     req.on("end", () => {
+      if (tooLarge) {
+        reject(httpError(`请求内容过大，请减少历史上下文或附件后重试。当前限制约 ${Math.round(maxBytes / 1024 / 1024)} MB。`, 413));
+        return;
+      }
       try {
         resolve(body ? JSON.parse(body) : {});
       } catch {
@@ -58,6 +65,12 @@ function readJsonBody(req) {
     });
     req.on("error", reject);
   });
+}
+
+function httpError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
 }
 
 export function sendJson(res, status, payload) {
@@ -128,7 +141,7 @@ export async function handleAuth(req, res) {
   try {
     payload = await readJsonBody(req);
   } catch (error) {
-    sendJson(res, 400, { error: error.message });
+    sendJson(res, error.status || 400, { error: error.message });
     return;
   }
 
@@ -170,7 +183,7 @@ export async function proxyDeepSeek(req, res) {
   try {
     payload = await readJsonBody(req);
   } catch (error) {
-    sendJson(res, 400, { error: error.message });
+    sendJson(res, error.status || 400, { error: error.message });
     return;
   }
 
@@ -184,6 +197,8 @@ export async function proxyDeepSeek(req, res) {
   }
 
   let upstream;
+  const upstreamController = new AbortController();
+  req.on("close", () => upstreamController.abort());
   try {
     upstream = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: "POST",
@@ -191,9 +206,11 @@ export async function proxyDeepSeek(req, res) {
         authorization: `Bearer ${apiKey}`,
         "content-type": "application/json"
       },
+      signal: upstreamController.signal,
       body: JSON.stringify(buildDeepSeekBody(payload))
     });
   } catch (error) {
+    if (upstreamController.signal.aborted) return;
     sendJson(res, 502, {
       error: `DeepSeek 网络连接失败：${error instanceof Error ? error.message : "未知错误"}`,
       fallback: true
@@ -215,6 +232,7 @@ export async function proxyDeepSeek(req, res) {
     "cache-control": "no-store",
     "x-accel-buffering": "no"
   });
+  res.flushHeaders?.();
 
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();

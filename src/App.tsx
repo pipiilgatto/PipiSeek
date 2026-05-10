@@ -190,6 +190,7 @@ export default function App() {
               key={message.id}
               message={message}
               onImprove={handleImprove}
+              onContinue={handleContinue}
               onToggleSpeak={handleToggleSpeak}
               isSpeaking={speakingMessageId === message.id}
             />
@@ -376,7 +377,7 @@ export default function App() {
 
     try {
       let reply = "";
-      await streamAssistantReply({
+      const finalReply = await streamAssistantReply({
         messages: requestMessages,
         route,
         authSession,
@@ -389,7 +390,7 @@ export default function App() {
         }
       });
       patchMessage(assistantMessage.id, {
-        content: reply || "喵～这次没有收到有效内容。",
+        content: finalReply || reply || "喵～这次没有收到有效内容。",
         status: "idle"
       });
     } catch (error) {
@@ -438,6 +439,29 @@ export default function App() {
       .join("\n\n");
 
     await sendWithRoute(prompt, improvementRoute(mode), "不满意，请重新回答。", previousUser.attachments || []);
+  }
+
+  async function handleContinue(messageId: string) {
+    if (isBusy) return;
+    const index = activeConversation.messages.findIndex((message) => message.id === messageId);
+    if (index < 0) return;
+
+    const assistantMessage = activeConversation.messages[index];
+    if (assistantMessage.role !== "assistant" || !assistantMessage.content.trim()) return;
+
+    const previousUser = [...activeConversation.messages.slice(0, index)].reverse().find((message) => message.role === "user");
+    const prompt = [
+      "请从上一条回答中断的位置继续写。",
+      "不要重复已经写过的内容；如果需要承接，请用一句很短的话接上。",
+      previousUser ? `原问题：${previousUser.content}` : "",
+      previousUser?.attachments?.length ? `原问题附件：\n${attachmentPreviewText(previousUser.attachments)}` : "",
+      `上一条回答的结尾：\n${assistantMessage.content.slice(-3600)}`,
+      "请直接继续回答。"
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    await sendWithRoute(prompt, chooseRoute(prompt, mode), "继续回答。");
   }
 
   function handleLogout() {
