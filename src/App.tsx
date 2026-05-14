@@ -4,6 +4,7 @@ import { LoginScreen } from "./components/LoginScreen";
 import { MenuIcon } from "./components/Icons";
 import { MessageBubble } from "./components/MessageBubble";
 import { ModeControls } from "./components/ModeControls";
+import { PipiPet } from "./components/PipiPet";
 import { Sidebar } from "./components/Sidebar";
 import { fallbackReply, streamAssistantReply } from "./lib/api";
 import { appIcon192 } from "./lib/assets";
@@ -142,7 +143,12 @@ export default function App() {
   }, []);
 
   if (!authSession) {
-    return <LoginScreen onLogin={setAuthSession} />;
+    return (
+      <>
+        <LoginScreen onLogin={setAuthSession} />
+        <PipiPet isBusy={false} mode="daily" />
+      </>
+    );
   }
 
   return (
@@ -217,6 +223,8 @@ export default function App() {
           />
         </div>
       </main>
+
+      <PipiPet isBusy={isBusy} mode={mode} />
 
       {isSidebarOpen && <button className="scrim" type="button" aria-label="关闭浮层" onClick={() => setIsSidebarOpen(false)} />}
     </div>
