@@ -113,6 +113,32 @@ export function MicIcon(props: IconProps) {
   );
 }
 
+export function BowlIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 10h14l-1.2 6.2A3.5 3.5 0 0 1 14.4 19H9.6a3.5 3.5 0 0 1-3.4-2.8L5 10Z" />
+      <path d="M4 10h16M8 7c.8-.8 1.6-.8 2.4 0M13.6 7c.8-.8 1.6-.8 2.4 0" />
+    </IconBase>
+  );
+}
+
+export function SparkleIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3.5 13.8 9l5.7 2-5.7 2L12 18.5 10.2 13l-5.7-2 5.7-2L12 3.5Z" />
+      <path d="m19 3 1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1L19 3ZM5 15l.8 1.8 1.8.8-1.8.8L5 20.2l-.8-1.8-1.8-.8 1.8-.8L5 15Z" />
+    </IconBase>
+  );
+}
+
+export function MoonIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M20 14.5A7.8 7.8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+    </IconBase>
+  );
+}
+
 export function SpeakerIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -3,3 +3,4 @@ export function publicAsset(path: string) {
 }
 
 export const appIcon192 = publicAsset("icon-192.png");
+export const pipiCodexPet = publicAsset("pipi-codex-pet.png");
